@@ -1,0 +1,4 @@
+{
+  "buildOrder": ["power", "refinery", "barracks", "factory", "refinery", "power", "radar", "refinery", "power"],
+  "vehicleMix": {"tank": 3, "aaVehicle": 1}
+}

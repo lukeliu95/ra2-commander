@@ -29,7 +29,7 @@
 - `orderUnits(ids, orderType, x, y)`：对地面格子下令（移动、攻击移动）。
 - `orderUnits(ids, 2 /*Attack*/, objectId)`：只传一个参数时是**攻击指定对象**（拆建筑要用这个）。
 - `orderUnits([mcvId], 10 /*DeploySelected*/)`：展开 MCV。
-- `queueForProduction(queueType, name, objectType, qty)`；`placeBuilding(name, x, y)`；`toggleRepairWrench(buildingId)`；`sellObject(id)`；`quitGame()`。
+- `queueForProduction(queueType, name, objectType, qty)`；`unqueueFromProduction(queueType, name, objectType, qty)`（取消并退款，已实测）；`placeBuilding(name, x, y)`；`toggleRepairWrench(buildingId)`；`sellObject(id)`；`quitGame()`。
 - 生产队列原始对象：`game.getPlayerByName(me).production.getQueue(type)` → `{status, currentSize, getAll() → [{rules, progress}]}`；`production.getAvailableObjects()` → rules 列表。
 
 ## 4. 引擎对象字段（`game.getObjectById(id)`）
@@ -53,7 +53,8 @@
 4. 开局读矿区要在建造厂出现后；太早会读到 0。
 5. 页面加载后可能弹出"检测到不受支持的图形卡"，点"使用低质量设置"。
 6. 浏览器面板尺寸会变，菜单坐标跟着变（800x668 / 800x620 都出现过）。每次点击前先截图，按本次截图报告的坐标系换算。
-7. 从页面 fetch `http://127.0.0.1` 会被浏览器拦截（公网页面访问本机网络）。所以 runtime 靠粘贴 install.js 装进 localStorage，页面里 `eval` 可用。
+7. 从页面 fetch `http://127.0.0.1` 会被浏览器拦截（公网页面访问本机网络）。所以 runtime 默认靠粘贴 install.js 装进 localStorage，页面里 `eval` 可用。例外是 `https://raw.githubusercontent.com/...` 允许跨域：如果本地 runtime.js 和 GitHub 上某个已推送提交完全一致，可以在页面里按提交哈希 fetch 下来再 eval，省去粘贴 3 万多字符。
+12. 在 `mcp__Claude_Browser__resize_window` 模拟的视口里，canvas 点击可能不生效。点菜单要用面板原生尺寸（preset desktop）；面板太矮、按钮被截掉时，请用户把浏览器面板拉高。
 8. 研究接口时游戏照常在跑，闲置几分钟基地就会被 AI 推平。先把脚本准备好再开局。
 9. 刷新页面会清空所有注入，要重新执行 arm.js（localStorage 里的 runtime 还在）。
 10. `javascript_tool` 单次调用超过 45 秒会超时。在页面里等待的时间不要超过约 30 秒，长时间监控要拆成多次调用。

@@ -1,0 +1,45 @@
+{
+  "version": "v002",
+  "parent": "v001",
+  "createdAt": "2026-09-18T01:20:00",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 7,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 8,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "factory",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 3,
+      "aaVehicle": 2
+    },
+    "defenses": {
+      "baseDef": 2
+    },
+    "attackMinUnits": 14,
+    "scout": true
+  },
+  "reason": "第 2 局（v001 胜，7:27）的有效调整固化：maxFactories 1→2（第 2 战车工厂让坦克产量翻倍，T-003）；vehicleMix aaVehicle 1→2（AI 前期纯步兵，T-004）；buildOrder 末尾多余电厂换成战车工厂（电力 800/260 过剩）；attackMinUnits 12→14。攻城集火规则写入执行层（T-006）。"
+}

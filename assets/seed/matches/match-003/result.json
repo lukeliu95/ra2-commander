@@ -1,0 +1,9 @@
+{
+  "match": "match-003",
+  "result": "lost",
+  "durationSec": 455,
+  "planVersion": "v002",
+  "opponent": "ai-easy",
+  "notes": "首遇苏军，4 波递增进攻（动员兵→犀牛→V3→天启）逐步消耗，7:34 基地被 2 天启+犀牛+V3 推平",
+  "recordedAt": "2026-09-18T01:38:52"
+}

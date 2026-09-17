@@ -43,6 +43,7 @@ python3 <skill>/scripts/evolve.py new-match --opponent ai-easy --map "岛屿之�
 - `--roles`：默认 `commander,analyst` 两个实时 agent；加上 `quartermaster` 就是三个，经济字段交给后勤官。
 - 用 `mcp__Claude_Browser__javascript_tool` 检查 `localStorage.getItem('ra2cmd:runtimeVersion')`，与输出的 `runtimeVersion` 比较：
   - 不一致（首次使用，或 runtime.js 改过）：Read 本局目录的 `install.js`，把全文作为 javascript_exec 执行，应返回 `installed rt-…`。
+    - 省事的做法：如果 skill 目录是 git 仓库，本地 `scripts/runtime.js` 没有未提交改动，并且当前提交已推送到 GitHub 公开仓库，可以不粘贴，直接在页面里执行：`const s = await (await fetch('https://raw.githubusercontent.com/<owner>/<repo>/<commit>/scripts/runtime.js')).text(); (0, eval)(s); localStorage.setItem('ra2cmd:runtime', '(' + ra2Runtime.toString() + ')()'); localStorage.setItem('ra2cmd:runtimeVersion', '<runtimeVersion>')`。`<runtimeVersion>` 取自 new-match 的输出；`git status` 显示 runtime.js 有改动时不要用这个方法，否则装进去的代码和版本号对不上。
   - 然后 Read `arm.js`（很短）并执行，应返回 `ra2 runtime … armed`。返回 `NEED_INSTALL` 说明上一步没装上。
 - 刷新过页面就要重新执行 arm.js。
 
