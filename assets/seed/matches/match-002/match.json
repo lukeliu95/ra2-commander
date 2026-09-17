@@ -1,0 +1,11 @@
+{
+  "matchId": "match-002",
+  "opponent": "ai-easy",
+  "map": "岛屿之战 (2)",
+  "planVersion": "v001",
+  "roles": [
+    "commander",
+    "observer"
+  ],
+  "runtimeVersion": "legacy"
+}

@@ -1,0 +1,45 @@
+{
+  "version": "v001",
+  "parent": "v000",
+  "createdAt": "2026-09-18T00:58:00",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 7,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 8,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power",
+      "power"
+    ],
+    "maxFactories": 1,
+    "vehicleMix": {
+      "tank": 3,
+      "aaVehicle": 1
+    },
+    "defenses": {
+      "baseDef": 2
+    },
+    "attackMinUnits": 12,
+    "scout": true
+  },
+  "reason": "复盘第 1 局：经济太弱（1 矿厂 1 矿车）、没有坦克、碉堡孤立被先拆。改为 3 矿厂×2 矿车、坦克+防空车混编、2 碉堡朝敌方来向、开局军犬侦察，并加入执行层反射（迎击/补电/修理/防空/撤退）。"
+}

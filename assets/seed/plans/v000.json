@@ -1,0 +1,46 @@
+{
+  "version": "v000",
+  "parent": null,
+  "createdAt": "2026-09-18T00:40:00",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 1,
+    "maxMiners": 4,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 12,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 8,
+    "siegeQuietSeconds": 10,
+    "repair": false,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "power",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "power",
+      "factory",
+      "power",
+      "refinery"
+    ],
+    "maxFactories": 1,
+    "vehicleMix": {
+      "tank": 1
+    },
+    "defenses": {
+      "baseDef": 3
+    },
+    "attackMinUnits": 10,
+    "scout": false
+  },
+  "reason": "第 1 局的固定脚本（无 subagent、无反射）换算成的等价参数：只造灰熊、单矿车、攒 10 个单位才出击。作为反面基线保留。"
+}

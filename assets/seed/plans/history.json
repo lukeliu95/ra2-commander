@@ -1,0 +1,18 @@
+{
+  "v000": [
+    {
+      "match": "match-001",
+      "result": "lost",
+      "durationSec": 225,
+      "opponent": "ai-easy"
+    }
+  ],
+  "v001": [
+    {
+      "match": "match-002",
+      "result": "won",
+      "durationSec": 447,
+      "opponent": "ai-easy"
+    }
+  ]
+}

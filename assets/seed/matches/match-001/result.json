@@ -1,0 +1,8 @@
+{
+  "match": "match-001",
+  "result": "lost",
+  "durationSec": 225,
+  "planVersion": "v000",
+  "opponent": "ai-easy",
+  "notes": "固定脚本，开局 bug 浪费 35 秒，2:45 被 AI 10 单位主攻推平"
+}
