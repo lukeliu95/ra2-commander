@@ -11,13 +11,16 @@ function ra2Runtime() {
       baseDef: 'GAPILL', aaDef: 'NASAM', strongDef: 'ATESLA', tank: 'MTNK', aaVehicle: 'FV', heavyTank: 'SREF', inf: 'E1', aaInf: 'JUMPJET', dog: 'ADOG', engineer: 'ENGINEER'},
     NA: {power: 'NAPOWR', refinery: 'NAREFN', barracks: 'NAHAND', factory: 'NAWEAP', radar: 'NARADR', tech: 'NATECH', depot: 'NADEPT', harv: 'HARV',
       baseDef: 'NALASR', aaDef: 'NAFLAK', strongDef: 'TESLA', tank: 'HTNK', aaVehicle: 'HTK', heavyTank: 'APOC', inf: 'E2', aaInf: 'FLAKT', dog: 'DOG', engineer: 'SENGINEER'},
+    // Confederation (third faction seen in match-005). baseDef/aaDef/aaInf unconfirmed — verified from `unit_rules.json` only up to what appeared on screen.
+    CA: {power: 'CAPOWR', refinery: 'CAREFN', barracks: 'CAHAND', factory: 'CAWEAP', radar: 'CARADR', tech: 'CATECH', depot: 'CADEPT', harv: 'CHAR',
+      baseDef: 'NALASR', aaDef: 'NAFLAK', strongDef: 'ATESLA', tank: 'LTNK', aaVehicle: 'BGGY', heavyTank: 'HOWI', inf: 'PLA', aaInf: 'HOVI', dog: 'ADOG', engineer: 'SENGINEER'},
   };
   const DEFAULT_PLAN = {
     stance: 'defend',
     buildOrder: ['power', 'refinery', 'barracks', 'factory', 'refinery', 'power', 'radar', 'refinery', 'factory', 'power'],
     targetRefineries: 3, minersPerRefinery: 2, maxMiners: 7, maxFactories: 2,
     vehicleMix: {tank: 3, aaVehicle: 2}, infantryMix: {inf: 1}, infantryCap: 8,
-    defenses: {baseDef: 2}, defenseDistance: 6, threatRadius: 14, leashRadius: 8,
+    defenses: {baseDef: 2}, defenseDistance: 6, threatRadius: 14, leashRadius: 8, sortieMaxUnits: 4,
     attackMinUnits: 14, retreatRatio: 0.35, attackTarget: 'auto',
     siegeAutoAttackUnits: 8, siegeQuietSeconds: 10,
     scout: true, repair: true,
@@ -76,7 +79,7 @@ function ra2Runtime() {
     const M = C.mem = {side: null, sideKey: null, enemyBuildings: new Map(), enemyTypes: new Map(), myIds: new Map(), enemyUnitIds: new Map(),
       armyHist: [], approach: null, alarm: false, airSeen: false, attack: null, scoutId: null, scouted: false, repairing: new Set(),
       lastOrder: new Map(), pendingPlace: 0, lastTick: {}, oreTiles: [], siegeTarget: null, siegeHit: new Map(), noArmySince: null,
-      av: null, counts: null, unavail: {}};
+      av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null};
     const sec = () => g.getCurrentTick() / rate;
     const every = (key, s) => { const now = sec(); if (now - (M.lastTick[key] ?? -1e9) >= s) { M.lastTick[key] = now; return true; } return false; };
     // A role may map to candidates (e.g. country-specific radar); pick the one that is buildable or already owned.
@@ -176,8 +179,8 @@ function ra2Runtime() {
     };
 
     // Plan changes must also stop spending on items already in production that the plan no longer wants.
-    function reconcileQueues(counts, av) {
-      const P = C.plan;
+    function reconcileQueues(counts, av, infCount) {
+      const P = C.plan, pd = g.getPlayerData(ME);
       const occ = n => P.buildOrder.filter(r => R(r) === n).length;
       const sumFor = (obj, n) => Object.entries(obj).filter(([k]) => R(k) === n).reduce((s, [, v]) => s + v, 0);
       const need = {
@@ -189,7 +192,7 @@ function ra2Runtime() {
         },
         [Q.Armory]: it => (counts[it.rules.name] || 0) < sumFor(wantDefenses(P, av), it.rules.name),
         [Q.Vehicles]: it => it.rules.harvester || sumFor(wantVehicleMix(P), it.rules.name) > 0,
-        [Q.Infantry]: it => it.rules.name === R('dog') || sumFor(P.infantryMix, it.rules.name) > 0,
+        [Q.Infantry]: it => it.rules.name === R('dog') || (sumFor(P.infantryMix, it.rules.name) > 0 && infCount < P.infantryCap),
       };
       const objType = {[Q.Structures]: 2, [Q.Armory]: 2, [Q.Vehicles]: 7, [Q.Infantry]: 3};
       for (const qt of [Q.Structures, Q.Armory, Q.Vehicles, Q.Infantry]) {
@@ -198,7 +201,7 @@ function ra2Runtime() {
         for (const it of q.getAll()) {
           if (need[qt](it) || !every(`cancel:${qt}:${it.rules.name}`, 3)) continue;
           my.unqueueFromProduction(qt, it.rules.name, it.rules.type || objType[qt], 1);
-          log('reflex', `方案已不需要，取消 ${it.rules.name}（进度 ${Math.round((it.progress || 0) * 100)}%）`);
+          log('reflex', `方案已不需要，取消 ${it.rules.name}（进度 ${Math.round((it.progress || 0) * 100)}%，取消前资金 ${pd.credits}）`);
         }
       }
     }
@@ -207,7 +210,14 @@ function ra2Runtime() {
       const P = C.plan, pd = g.getPlayerData(ME);
       const counts = M.counts = tally(S.mine.map(o => o.name));
       const powerLeft = pd.power.total - pd.power.drain;
-      if (every('reconcile', 1.5)) reconcileQueues(counts, av);
+      const infCount = S.mine.filter(o => o.isInfantry()).length;
+      if (every('reconcile', 1.5)) reconcileQueues(counts, av, infCount);
+      // Four queues splitting zero income never finish the expensive one (match-004: TESLA sat at 66% for 3.5 min).
+      // While a >=1000 structure/defense is in progress and cash is short, stop queueing new infantry/vehicles.
+      const expensiveBusy = [Q.Structures, Q.Armory].some(t => { const q = queue(t); return q && q.currentSize && q.status !== ST.Ready && q.getAll().some(i => (i.rules.cost || 0) >= 1000); });
+      // Hysteresis: enter below 300, leave only above 800 or once the expensive item is done (match-005 flipped 22 times without it).
+      const starved = expensiveBusy && (M.starved ? pd.credits < 800 : pd.credits < 300);
+      if (starved !== M.starved) { M.starved = starved; log('reflex', starved ? '资金不足且有 ≥1000 的建筑在建：暂停新排步兵/载具，让它先收敛（矿车不受影响）' : '贵建筑已收敛或资金恢复：恢复步兵/载具排产'); }
       const sq = queue(Q.Structures);
       if (sq) {
         if (sq.status === ST.Ready && sec() >= M.pendingPlace) {
@@ -228,7 +238,11 @@ function ra2Runtime() {
           if (!next && (counts[R('refinery')] || 0) < P.targetRefineries && av.has(R('refinery'))) next = R('refinery');
           if (!next && (counts[R('factory')] || 0) < P.maxFactories && pd.credits > 2500 && av.has(R('factory'))) next = R('factory');
           if (!next && powerLeft < 150 && av.has(R('power'))) next = R('power');
-          if (next) {
+          if (!next) {
+            M.sqIdleSince ??= sec();
+            if (sec() - M.sqIdleSince > 45 && every('sqIdle', 60)) log('warn', `建筑队列已空闲 ${Math.round(sec() - M.sqIdleSince)} 秒：buildOrder 已完成且没有兜底项，需要指挥官追加`);
+          } else {
+            M.sqIdleSince = null;
             const r = game.rules.getObject(next, 2);
             if (r && r.power < 0 && powerLeft + r.power < 0 && av.has(R('power')) && next !== R('power')) { next = R('power'); log('reflex', '电力不够，先补电厂'); }
             my.queueForProduction(Q.Structures, next, 2, 1); log('build', `排产 ${next}（资金 ${pd.credits}，余电 ${powerLeft}）`);
@@ -241,10 +255,14 @@ function ra2Runtime() {
           const rules = dq.getAll()[0].rules;
           const spot = findSpot(rules.name, placementCenter(rules, S.buildings));
           if (spot) { my.placeBuilding(rules.name, spot.x, spot.y); log('build', `放置防御 ${rules.name} @${spot.x},${spot.y}`); M.pendingPlace = sec() + 0.8; }
-        } else if (dq.status === ST.Idle && dq.currentSize === 0 && (pd.credits > 700 || M.alarm)) {
+        } else if (dq.status === ST.Idle && dq.currentSize === 0) {
+          // Alarm may fast-track cheap defenses only; expensive ones wait for half their cost in the bank.
           for (const [role, n] of Object.entries(wantDefenses(P, av))) {
             const name = R(role);
-            if ((counts[name] || 0) < n && av.has(name)) { my.queueForProduction(Q.Armory, name, 2, 1); log('build', `排产防御 ${name}`); break; }
+            if ((counts[name] || 0) >= n || !av.has(name)) continue;
+            const c = (game.rules.getObject(name, 2) || {}).cost || 0;
+            if ((pd.credits > 700 && pd.credits >= c * 0.5) || (M.alarm && c <= 700)) { my.queueForProduction(Q.Armory, name, 2, 1); log('build', `排产防御 ${name}（${c}，资金 ${pd.credits}）`); }
+            break;
           }
         }
       }
@@ -254,17 +272,18 @@ function ra2Runtime() {
       if (vq && vq.currentSize < 2) {
         const wantMiners = Math.min(P.maxMiners, refs * P.minersPerRefinery);
         const queuedMiner = vq.getAll().some(i => i.rules.harvester);
-        if (harvs < wantMiners && !queuedMiner && av.has(R('harv'))) { my.queueForProduction(Q.Vehicles, R('harv'), 7, 1); log('prod', `补矿车（${harvs}/${wantMiners}）`); }
-        else if (pd.credits > 600 || (sq && sq.status === ST.Idle && sq.currentSize === 0) || M.alarm) {
+        // Miners are exempt from the starvation guard only up to 2/refinery (the minimum useful count); a 3rd miner
+        // competing with tanks for the same queue slot cost us a MTNK in the window before match-005's first attack.
+        if (harvs < wantMiners && !queuedMiner && av.has(R('harv')) && (!starved || harvs < refs * 2)) { my.queueForProduction(Q.Vehicles, R('harv'), 7, 1); log('prod', `补矿车（${harvs}/${wantMiners}）`); }
+        else if (!starved && (pd.credits > 600 || (sq && sq.status === ST.Idle && sq.currentSize === 0) || M.alarm)) {
           const n = pickByMix(wantVehicleMix(P), counts, av);
           if (n) my.queueForProduction(Q.Vehicles, n, 7, 1);
         }
       }
       const iq = queue(Q.Infantry);
-      const infCount = S.mine.filter(o => o.isInfantry()).length;
       if (iq && iq.currentSize < 1) {
         if (P.scout && !M.scoutId && !M.scouted && av.has(R('dog')) && !(counts[R('dog')] > 0)) my.queueForProduction(Q.Infantry, R('dog'), 3, 1);
-        else if (infCount < P.infantryCap && (pd.credits > 300 || M.alarm)) {
+        else if (!starved && infCount < P.infantryCap && (pd.credits > 300 || M.alarm)) {
           const n = pickByMix(P.infantryMix, counts, av);
           if (n) my.queueForProduction(Q.Infantry, n, 3, 1);
         }
@@ -290,12 +309,14 @@ function ra2Runtime() {
       if (lost.length) log('loss', `我方损失 ${JSON.stringify(tally(lost))}`);
       const base = baseCenter(S.buildings);
       const army = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
-      const c = centroid(army);
-      // The whole-army centroid lags behind fast vehicles; track the group nearest to our base for ETA.
+      // Revealed ground stays visible for good (no fog of war), so units idling at the enemy base are "visible" too.
+      // Distance/trend are computed from the field army only; the home group is reported separately.
       const away = army.filter(o => dist(xy(o), enemyStart()) > 15);
+      const c = centroid(away);
+      // The field-army centroid still lags behind fast vehicles; track the group nearest to our base for ETA.
       const leadUnit = away.reduce((b, o) => !b || d2(xy(o), base) < d2(xy(b), base) ? o : b, null);
       const lead = leadUnit ? away.filter(o => d2(xy(o), xy(leadUnit)) < 64) : [];
-      M.armyHist.push({t: now, n: army.length, value: army.reduce((s, o) => s + cost(o), 0), c, d: c ? Math.round(dist(c, base)) : null,
+      M.armyHist.push({t: now, n: army.length, value: army.reduce((s, o) => s + cost(o), 0), fn: away.length, fv: away.reduce((s, o) => s + cost(o), 0), c, d: c ? Math.round(dist(c, base)) : null,
         ln: lead.length, lv: lead.reduce((s, o) => s + cost(o), 0), lc: centroid(lead), lcomp: tally(lead.map(o => o.name)), ld: leadUnit ? Math.round(dist(xy(leadUnit), base)) : null});
       if (M.armyHist.length > 60) M.armyHist.shift();
       const close = army.filter(o => dist(xy(o), base) < 30);
@@ -331,8 +352,25 @@ function ra2Runtime() {
       const miners = S.mine.filter(o => o.rules.harvester);
       const rally = {x: Math.round(base.x + dir.x * (P.defenseDistance + 2)), y: Math.round(base.y + dir.y * (P.defenseDistance + 2))};
       // Fight next to our defenses: chasing threats far from towers lost the whole army twice in match-003.
-      const towers = S.buildings.filter(b => b.rules.isBaseDefense).map(xy);
+      const towerObjs = S.buildings.filter(b => b.rules.isBaseDefense);
+      const towers = towerObjs.map(xy);
       const anchorFor = p => towers.length ? towers.reduce((a, t) => d2(t, p) < d2(a, p) ? t : a) : rally;
+      // A tower's own weapon range, so the engage point sits where the tower can actually shoot (match-005: engage
+      // point was 8-10.3 tiles from the anchor tower while its weapon range was 5.5-8, so it never fired a shot).
+      const rangeCache = new Map();
+      const towerRangeAt = p => {
+        const b = towerObjs.find(o => { const x = xy(o); return x.x === p.x && x.y === p.y; });
+        if (!b) return null;
+        if (rangeCache.has(b.name)) return rangeCache.get(b.name);
+        let r = null;
+        try {
+          const rules = game.rules.getObject(b.name, 2);
+          const w = rules && (rules.primary || rules.elitePrimary) && game.rules.getWeapon(rules.primary || rules.elitePrimary);
+          if (w && w.range) r = w.range;
+        } catch (e) {}
+        rangeCache.set(b.name, r);
+        return r;
+      };
       const leash = P.defenseDistance + P.leashRadius;
       const raw = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
       const nearBuilding = o => myBuild.some(b => d2(b, xy(o)) < P.threatRadius ** 2);
@@ -347,11 +385,34 @@ function ra2Runtime() {
       if (outside.length && every('outsideLeash', 15)) log('warn', `防线外有敌军在打我方建筑：${JSON.stringify(tally(outside.map(o => o.name)))}，超出拴绳距离 ${leash} 格未出兵（可调 leashRadius）`);
       const threatValue = threats.reduce((s, o) => s + cost(o), 0);
       const myValue = units.reduce((s, o) => s + cost(o), 0);
+      // Artillery parked just outside the leash shelled both towers to death in match-004 with zero response.
+      // Send a few fast vehicles only when the shooters are lightly escorted; everyone else stays on the line.
+      const isArty = o => !!(o.rules.isArtillery || /^(V3|ARTY|DRED)$/.test(o.name)); // HOWI is CA's heavy tank (APOCChina), not artillery (match-005 unit_rules.json)
+      const arty = outside.filter(isArty);
+      let sortieGo = false;
+      if (P.sortieMaxUnits > 0 && arty.length && !threats.length) {
+        const ac = centroid(arty);
+        // Escorts may sit beyond threatRadius, so count every enemy within 10 tiles of the guns, not just `outside`.
+        const escort = raw.filter(o => !isArty(o) && d2(xy(o), ac) < 100).reduce((s, o) => s + cost(o), 0);
+        const artyValue = arty.reduce((s, o) => s + cost(o), 0);
+        const fast = units.filter(o => o.isVehicle && o.isVehicle()).sort((a, b) => (b.rules.speed || 0) - (a.rules.speed || 0)).slice(0, P.sortieMaxUnits);
+        const fastValue = fast.reduce((s, o) => s + cost(o), 0);
+        if (fast.length && escort <= artyValue && escort + artyValue <= fastValue * 1.5) {
+          sortieGo = true;
+          if (!M.sortie) { M.sortie = {t: now}; log('reflex', `拴绳外有 ${JSON.stringify(tally(arty.map(o => o.name)))} 在轰建筑，护卫价值 ${escort}：派 ${fast.length} 辆快速载具出击 @${ac.x},${ac.y}`); }
+          orderThrottled(fast, ORD.AttackMove, ac.x, ac.y, 'sortie', 3);
+          orderThrottled(units.filter(o => !fast.includes(o) && d2(xy(o), rally) > 36), ORD.AttackMove, rally.x, rally.y, 'rally', 6);
+          return;
+        }
+      }
+      if (M.sortie && !sortieGo) { log('reflex', threats.length ? '出击结束：防线告警，快速载具归队' : arty.length ? '出击结束：炮兵护卫增强，快速载具归队' : '出击结束：炮兵已清除，快速载具归队'); M.sortie = null; orderThrottled(units, ORD.Move, rally.x, rally.y, 'retreat', 1); }
 
       if (threats.length) {
         const tc = centroid(threats);
         const anchor = anchorFor(tc), reach = dist(tc, anchor);
-        const pt = reach > P.leashRadius ? {x: Math.round(anchor.x + (tc.x - anchor.x) * P.leashRadius / reach), y: Math.round(anchor.y + (tc.y - anchor.y) * P.leashRadius / reach)} : tc;
+        const towerR = towerRangeAt(anchor);
+        const capR = towerR ? Math.max(1, Math.min(P.leashRadius, towerR - 1)) : P.leashRadius;
+        const pt = reach > capR ? {x: Math.round(anchor.x + (tc.x - anchor.x) * capR / reach), y: Math.round(anchor.y + (tc.y - anchor.y) * capR / reach)} : tc;
         if (!M.alarm) { M.alarm = true; log('alarm', `基地/矿车受威胁：${JSON.stringify(tally(threats.map(o => o.name)))} 价值 ${threatValue} @${tc.x},${tc.y}，迎击点 ${pt.x},${pt.y}，我方部队价值 ${myValue}`); }
         const deep = M.attack ? units.filter(o => dist(xy(o), enemyStart()) < 25) : [];
         const recallAll = threatValue > myValue * 0.25;
@@ -453,7 +514,7 @@ function ra2Runtime() {
       for (const p of players) {
         const pd = g.getPlayerData(p);
         const objs = g.getVisibleUnits(p, 'self').map(obj).filter(Boolean);
-        const b = objs.filter(o => o.isBuilding()), u = objs.filter(o => !o.isBuilding());
+        const b = objs.filter(o => o.isBuilding()), u = objs.filter(o => !o.isBuilding() && !isMissile(o));
         const armyUnits = u.filter(isCombat);
         snap.players[p] = {credits: pd.credits, power: pd.power.total - pd.power.drain, defeated: g.isPlayerDefeated(p),
           buildings: tally(b.map(o => o.name)), units: tally(u.map(o => o.name)),
@@ -513,6 +574,7 @@ function ra2Runtime() {
       const base = baseCenter(S.buildings);
       const myArmy = S.mine.filter(isCombat);
       const enArmy = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
+      const enField = enArmy.filter(o => dist(xy(o), enemyStart()) > 15), enHome = enArmy.filter(o => !enField.includes(o));
       const h = M.armyHist, last = h[h.length - 1], prev = h.find(x => now - x.t <= 12);
       let trend = 'unknown';
       if (last && prev && last.d != null && prev.d != null) trend = last.d < prev.d - 3 ? 'approaching' : last.d > prev.d + 3 ? 'withdrawing' : 'static';
@@ -535,7 +597,12 @@ function ra2Runtime() {
           buildings: tally(S.buildings.map(o => o.name)), units: tally(S.mine.filter(o => !o.isBuilding()).map(o => o.name)),
           army: {count: myArmy.length, value: myArmy.reduce((s, o) => s + cost(o), 0), at: centroid(myArmy)},
           damaged: S.buildings.filter(b => hp(b) < 0.7).map(b => `${b.name}${Math.round(hp(b) * 100)}%`), queues: qs},
-        enemy: {start: enemyStart(), visibleArmy: {count: enArmy.length, value: enArmy.reduce((s, o) => s + cost(o), 0), comp: tally(enArmy.map(o => o.name)), at: centroid(enArmy), distToMyBase: last?.d, trend}, lead,
+        enemy: {start: enemyStart(),
+          visibleArmy: {count: enArmy.length, value: enArmy.reduce((s, o) => s + cost(o), 0), comp: tally(enArmy.map(o => o.name)),
+            field: {count: enField.length, value: enField.reduce((s, o) => s + cost(o), 0), comp: tally(enField.map(o => o.name)), at: centroid(enField), distToMyBase: last?.d, trend},
+            atEnemyHome: {count: enHome.length, value: enHome.reduce((s, o) => s + cost(o), 0), comp: tally(enHome.map(o => o.name))},
+            note: '探过的区域永久可见（无战争迷雾）。distToMyBase/trend 只按 field（离敌方出生点 >15 格）计算；估时间用 lead。'},
+          lead,
           knownBuildings: tally([...M.enemyBuildings.values()].map(b => b.name)), airSeen: M.airSeen, approachFrom: M.approach},
         status: {stance: C.plan.stance, alarm: M.alarm, attack: M.attack ? {target: M.attack.target, startValue: M.attack.value, since: fmt(M.attack.t)} : null, siegeTarget: M.siegeTarget, scouted: M.scouted},
         events: fresh.slice(-maxEvents).map(e => `${e.t} [${e.kind}${e.author ? '/' + e.author : ''}] ${e.msg}`),
@@ -543,10 +610,10 @@ function ra2Runtime() {
         plan: C.plan,
       };
       if (detail) {
-        out.available = [...avail()];
+        try { out.available = [...avail()]; } catch (e) { out.available = []; out.availableError = e.message; }
         out.enemy.typesFirstSeen = Object.fromEntries([...M.enemyTypes].map(([n, t]) => [n, fmt(t)]));
         out.enemy.buildingsFirstSeen = [...M.enemyBuildings.values()].map(b => `${b.name}@${b.x},${b.y} ${fmt(b.seen)}`);
-        out.enemy.armyTrack = h.slice(-10).map(x => `${fmt(x.t)} n${x.n} v${x.value} ${x.c ? x.c.x + ',' + x.c.y : '-'} d${x.d ?? '-'} lead:n${x.ln} d${x.ld ?? '-'}`);
+        out.enemy.armyTrack = h.slice(-10).map(x => `${fmt(x.t)} all:n${x.n} v${x.value} field:n${x.fn ?? '-'} v${x.fv ?? '-'} ${x.c ? x.c.x + ',' + x.c.y : '-'} d${x.d ?? '-'} lead:n${x.ln} d${x.ld ?? '-'}`);
       }
       return out;
     };

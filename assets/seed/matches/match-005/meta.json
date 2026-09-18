@@ -1,0 +1,31 @@
+{
+  "durationSec": 230,
+  "enemies": ["@@AI2@@"],
+  "factions": {"@@AI2@@": "Confederation", "Player 1": "French"},
+  "logCount": 128,
+  "logKinds": {"advice": 6, "alarm": 11, "build": 25, "intel": 14, "kill": 11, "loss": 22, "over": 1, "plan": 3, "prod": 4, "reflex": 26, "scout": 2, "start": 2, "warn": 1},
+  "matchId": "match-005",
+  "me": "Player 1",
+  "plan0": {
+    "attackMinUnits": 14, "attackTarget": "auto",
+    "buildOrder": ["power", "refinery", "barracks", "factory", "refinery", "power", "radar", "refinery", "power"],
+    "defenseDistance": 6, "defenses": {"baseDef": 2, "strongDef": 1},
+    "infantryCap": 8, "infantryMix": {"inf": 1}, "leashRadius": 8, "maxFactories": 2, "maxMiners": 9, "minersPerRefinery": 3,
+    "repair": true, "retreatRatio": 0.35, "scout": true, "siegeAutoAttackUnits": 8, "siegeQuietSeconds": 10, "sortieMaxUnits": 4,
+    "stance": "defend", "targetRefineries": 3, "threatRadius": 14, "vehicleMix": {"aaVehicle": 1, "tank": 3}
+  },
+  "planFinal": {
+    "attackMinUnits": 14, "attackTarget": "auto",
+    "buildOrder": ["power", "refinery", "barracks", "factory", "refinery", "refinery", "power", "radar"],
+    "defenseDistance": 6, "defenses": {"baseDef": 2, "strongDef": 1},
+    "infantryCap": 0, "infantryMix": {"inf": 1}, "leashRadius": 8, "maxFactories": 2, "maxMiners": 9, "minersPerRefinery": 3,
+    "repair": true, "retreatRatio": 0.35, "scout": true, "siegeAutoAttackUnits": 8, "siegeQuietSeconds": 10, "sortieMaxUnits": 4,
+    "stance": "defend", "targetRefineries": 3, "threatRadius": 14, "vehicleMix": {"tank": 4}
+  },
+  "planVersion": "v004",
+  "result": "lost",
+  "runtimeVersion": "rt-9a68cddc69",
+  "side": "GA",
+  "snapshotCount": 24,
+  "starts": {"@@AI2@@": {"x": 135, "y": 80}, "Player 1": {"x": 71, "y": 118}}
+}

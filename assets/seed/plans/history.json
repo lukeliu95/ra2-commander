@@ -22,5 +22,21 @@
       "durationSec": 455,
       "opponent": "ai-easy"
     }
+  ],
+  "v003": [
+    {
+      "match": "match-004",
+      "result": "lost",
+      "durationSec": 477,
+      "opponent": "ai-easy"
+    }
+  ],
+  "v004": [
+    {
+      "match": "match-005",
+      "result": "lost",
+      "durationSec": 230,
+      "opponent": "ai-easy"
+    }
   ]
 }

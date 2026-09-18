@@ -1,0 +1,45 @@
+{
+  "version": "v005",
+  "parent": "v004",
+  "createdAt": "2026-09-18T09:55:46",
+  "reason": "复盘 match-005（v004 首战负，3:49，对手首次为古巴 Confederation/CA 系）。v004 只有 1 败、不满足回退条件，在 v004 上改 3 个字段，全部对准'2:32 第一波坦克到时只有 2 灰熊'这个直接败因。(1) minersPerRefinery 3->2（T-016 加时间条件，maxMiners 9 保留给指挥官中局上调）：全视野显示 1:53 排产的第 5 辆矿车（CMIN 1400）在资金恒 0 下占了载具队列 52 秒（1:53-2:45），正好覆盖 2:32 接敌前最后一个坦克排产窗口，等于少 2 辆灰熊；矿车回本在 3:40 之后，而本局 3:49 已判负。T-016 的'矿车饱和'只在苏军 4:00 后的长局成立，对 2:23 就出门坦克波的阵营是反效果。(2) vehicleMix {tank:3,aaVehicle:1}->{tank:4}（T-004 AA 部分已废弃，支持 1/反对 3）：5 局里 3 个非盟军对手 airSeen 全程 false；本局 FV 在 2:11-2:37 以 0% 进度占住 2 格载具队列的一格，2:37 才被对账取消，第 3 辆灰熊因此从未排上；盟军 AI 的 JUMPJET 由 airSeen 反射自动补 aaVehicle 到 2，方案里省略即可。(3) leashRadius 8->4（T-011 允许调小，T-021 候选）：2:32 迎击点 (83,110) 离锚定碉堡 (76,114) 8.0 格，超出 Vulcan2 射程 5.5，离光棱塔 (78,119) 10.3 格也超出 PrismShot 射程 8，8 E1 + 2 MTNK 在没有任何塔火力支援的位置和 2 LTNK + 2 GHOST2 对射，2:35-2:44 全灭；改 4 后迎击点 (79,112) 在碉堡 4.0 格、光棱 7.1 格内，两塔都能覆盖。infantryCap 8 不动：E1 对 LTNK 每发 3.75 伤害确实零效（T-020），但 8 E1 在 0:55 确认阵营前就已建成，改默认值会削弱对苏军 1:22 二十动员兵波的已验证防守（T-004 塔部分 3/0）；改为对手档案里的指挥官临场规则：0:55 看到 CA 系建筑立刻 infantryCap 3。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 9,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 8,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 2,
+      "strongDef": 1
+    },
+    "attackMinUnits": 14,
+    "scout": true,
+    "leashRadius": 4
+  }
+}

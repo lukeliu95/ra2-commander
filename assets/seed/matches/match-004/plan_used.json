@@ -1,0 +1,44 @@
+{
+  "version": "v003",
+  "parent": "v002",
+  "createdAt": "2026-09-18T01:46:32",
+  "reason": "复盘 match-003（v002 首战负，对苏军 7:34）。主要输在执行层（迎击反射两次把全军拉出碉堡全灭、改方案取消不了在建项），方案层只去掉 v002 里针对盟军过拟合的两处：buildOrder 删掉第 2 座 factory（T-013：2:33 资金 83 时按 buildOrder 排产 2000 的工厂，占住建筑队列到 4:17，被拆的矿厂 5:55 才重建；第 2 座工厂改由 maxFactories=2 加资金>2500 门槛触发，保留 match-002 的 T-003 收益）；vehicleMix aaVehicle 2→1（T-004/T-012：苏军无空军，6 辆 FV 约 3600 白送给犀牛；真有空军时执行层反射会自动提到 2，等于回到 v001 的已胜值）。其余字段不动，threatRadius/GGI 等待执行层修复后再验证（T-011、T-012）。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 7,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 8,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 3,
+      "aaVehicle": 1
+    },
+    "defenses": {
+      "baseDef": 2
+    },
+    "attackMinUnits": 14,
+    "scout": true
+  }
+}

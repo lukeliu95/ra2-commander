@@ -1,0 +1,5 @@
+{
+  "minersPerRefinery": 2,
+  "vehicleMix": {"tank": 4},
+  "leashRadius": 4
+}

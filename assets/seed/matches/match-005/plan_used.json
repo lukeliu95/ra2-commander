@@ -1,0 +1,45 @@
+{
+  "version": "v004",
+  "parent": "v003",
+  "createdAt": "2026-09-18T09:24:01",
+  "reason": "复盘 match-004（v003 首战负，苏军镜像局 7:56）。执行层的拴绳（T-011）和队列对账（T-014）本局都验证有效，一次全灭都没有、单位交换 1.13:1，所以方案层不动防守参数，只改直接导致失败的两件事。(1) minersPerRefinery 2->3、maxMiners 7->9（T-016）：3 矿厂只养 6 辆矿车，资金从 1:20 起到终局恒为 0，部队价值 3:01 峰值 4780 后一路掉到 0；AI 同样 3 矿厂养 13 辆矿车、4:21 起常年富余 5852-7879，是产能受限而非资金受限。补不回损耗才是本局真正的败因。(2) defenses 加 strongDef:1（T-017）：TESLA 在 4:15 借警报绕过 credits>700 门槛、在资金 0 时排产，到 7:38 只有 66%，整局零反装甲建筑；可造列表 2:06 就含 TESLA，1:48 资金 1007、3:01 资金 1430，写进初始 plan 可以让它在有钱的 1:50-2:30 排产，正面迎接 4:00 的 V3 和 4:45 的天启（T-012 更新后的时间线）。leashRadius 保持 8（T-011 已验证值），vehicleMix 不动：苏军局省 AA、上 DRON 由指挥官在确认阵营后按 T-004/T-012 临场调整，本局证明权重在没钱时调了也没用，先把钱解决。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 3,
+    "maxMiners": 9,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 8,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 3,
+      "aaVehicle": 1
+    },
+    "defenses": {
+      "baseDef": 2,
+      "strongDef": 1
+    },
+    "attackMinUnits": 14,
+    "scout": true
+  }
+}

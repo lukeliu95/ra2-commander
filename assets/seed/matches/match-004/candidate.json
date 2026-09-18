@@ -1,0 +1,5 @@
+{
+  "minersPerRefinery": 3,
+  "maxMiners": 9,
+  "defenses": {"baseDef": 2, "strongDef": 1}
+}

@@ -1,0 +1,52 @@
+{
+  "_note": "赛后从 window.__cmd.game.rules 读取的真实规则数据（本平台魔改版）。armor 枚举：0 none / 1 flak / 2 plate / 3 light / 4 medium / 5 heavy / 6 wood / 7 steel / 8 concrete / 9 special_1 / 10 special_2。rof 单位为帧（15 帧≈1 秒）。",
+  "units": {
+    "LTNK":   {"faction": "Confederation", "kind": "vehicle", "cost": 860, "hp": 330, "armor": "heavy", "speed": 27.57, "sight": 8, "turret": true, "crusher": true, "weapon": "120mm", "prereq": ["CAWEAP"], "techLevel": 2},
+    "GHOST2": {"faction": "Confederation(+苏系)", "uiName": "WOLFGHOST", "kind": "INFANTRY", "cost": 750, "hp": 125, "armor": "flak", "speed": 15.36, "sight": 8, "weapon": "SeaWolfMP5", "secondary": "Sapper(C4)", "prereq": ["CAHAND", "RADAR"], "techLevel": 5},
+    "PLA":    {"faction": "Confederation", "kind": "infantry", "cost": 200, "hp": 200, "armor": "flak", "speed": 12.8, "weapon": "M60", "prereq": ["CAHAND"], "techLevel": 1},
+    "CHAR":   {"faction": "Confederation(+苏系)", "kind": "vehicle(miner)", "cost": 800, "hp": 500, "armor": "medium", "speed": 39.38, "crusher": true, "prereq": ["CAWEAP", "PROC"], "techLevel": 1},
+    "ADOG":   {"kind": "infantry", "cost": 200, "hp": 80, "armor": "none", "speed": 20.48, "weapon": "GoodTeeth"},
+    "MTNK":   {"faction": "Allied", "kind": "vehicle", "cost": 750, "hp": 300, "armor": "heavy", "speed": 27.57, "weapon": "105mm", "prereq": ["GAWEAP"]},
+    "E1":     {"faction": "Allied", "kind": "infantry", "cost": 180, "hp": 125, "armor": "none", "speed": 10.24, "weapon": "M60", "prereq": ["GAPILE"]},
+    "CMIN":   {"faction": "Allied", "kind": "vehicle(miner)", "cost": 1400, "hp": 1000, "armor": "medium", "speed": 19.69}
+  },
+  "weapons": {
+    "120mm":      {"damage": 90,  "rof": 65, "range": 5.75, "warhead": "AP",          "user": "LTNK"},
+    "105mm":      {"damage": 65,  "rof": 60, "range": 5,    "warhead": "AP",          "user": "MTNK"},
+    "SeaWolfMP5": {"damage": 105, "rof": 10, "range": 6,    "warhead": "RifleBullet", "user": "GHOST2"},
+    "Sapper":     {"damage": 2500,"rof": 100,"range": 1.5,  "warhead": "Super",       "user": "GHOST2 副武器，对建筑 C4，一次拆楼"},
+    "M60":        {"damage": 15,  "rof": 20, "range": 4,    "warhead": "SA",          "user": "PLA / E1"},
+    "Vulcan2":    {"damage": 50,  "rof": 26, "range": 5.5,  "warhead": "SA",          "user": "GAPILL"},
+    "PrismShot":  {"damage": 120, "rof": 60, "range": 8,    "warhead": "PrismWarhead","user": "ATESLA(本平台光棱塔)"}
+  },
+  "warhead_verses": {
+    "_order": ["none", "flak", "plate", "light", "medium", "heavy", "wood", "steel", "concrete", "special_1", "special_2"],
+    "AP":           [0.25, 0.25, 0.25, 0.75, 1, 1, 0.65, 0.45, 0.6, 0.6, 1],
+    "SA":           [1, 0.8, 0.7, 0.5, 0.25, 0.25, 0.75, 0.5, 0.25, 1, 1],
+    "RifleBullet":  [1, 0.8, 0.3, 0.15, 0.05, 0.03, 0.01, 0.01, 0.01, 0.01, 1],
+    "PrismWarhead": [2, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 2, 1],
+    "Super":        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  },
+  "matchups_derived": {
+    "E1(M60) vs LTNK(heavy)": "15*0.25=3.75/发，330HP 需 88 发 ≈ 117 秒；E1 对坦克零贡献",
+    "MTNK(105mm) vs LTNK": "65/发，6 发 ≈ 24 秒；LTNK(120mm 90/发) 杀 MTNK(300HP) 4 发 ≈ 17 秒 → LTNK 单挑赢 MTNK",
+    "MTNK(AP) vs GHOST2(flak)": "65*0.25=16/发，125HP 需 8 发 ≈ 32 秒；坦克打 SEAL 型步兵极差",
+    "GAPILL(Vulcan2) vs LTNK": "50*0.25=12.5/发，需 27 发 ≈ 47 秒；碉堡对坦克零贡献",
+    "GAPILL vs GHOST2": "50*0.8=40/发，4 发 ≈ 7 秒；但 GHOST2 射程 6 > 碉堡 5.5，可以站在碉堡射程外打",
+    "GAPILL vs PLA": "50*0.8=40/发，5 发 ≈ 9 秒",
+    "ATESLA(Prism) vs LTNK": "120/发，3 发 ≈ 12 秒，射程 8 > LTNK 5.75",
+    "ATESLA vs GHOST2": "120/发，125HP 几乎一发；射程 8 > 6；光棱塔是 GHOST2 的唯一硬克制",
+    "GHOST2(SeaWolfMP5) vs E1": "105/发 rof 10 帧，E1 125HP 两发 ≈ 1.3 秒一个；6 格射程 > E1 4 格",
+    "GHOST2 Sapper vs 建筑": "2500 伤害 Super 弹头，任何建筑一次拆掉（矿厂 1000HP / ATESLA 600HP / 碉堡 400HP）"
+  },
+  "confederation_buildable_pool": {
+    "_note": "owner 含 Confederation 且前置能由 CA 系建筑满足的单位（NAHAND/NAWEAP 前置的苏军单位古巴造不了）",
+    "infantry": {"PLA": "200 CAHAND", "ADOG": "200 Barracks", "ENGINEER": "500", "GHOST2": "750 CAHAND+RADAR", "HOVI(CLEG 中子步兵)": "1500 CAHAND+RADAR+CATECH", "SPY": "1000 Barracks+TECH"},
+    "vehicles": {"CHAR": "800 CAWEAP+PROC 矿车", "LTNK": "860 CAWEAP", "BGGY(CFV 悬浮导弹车)": "850 CAWEAP", "SEEK(CHVTHL)": "1800 CAWEAP+CARADR", "HOWI(APOCChina 天启)": "1900 CAWEAP+CATECH 800HP heavy", "V32(V3China)": "1400 CAWEAP+CARADR+CATECH+CAARMR", "CMCV": "3000 CAWEAP+CADEPT"},
+    "aircraft": {"J5": "1200 CARADR", "J10": "2700 RADAR+CATECH+CAARMR"},
+    "buildings_seen": {"CACNST": 3000, "CAPOWR": "600 +150 电", "CAHAND": 500, "CAREFN": 2000, "CAWEAP": 2000, "CARADR": 1000, "CATECH": 2000, "CANRCT": "1850 +2600 电 (核电)", "CAARMR": "2500 (buildLimit 1)", "CADEPT": 800}
+  },
+  "match005_enemy_first_seen_fullview": {
+    "CAPOWR": "0:11", "CAHAND": "0:21", "PLA": "0:21", "ADOG": "0:21", "CAREFN": "0:41", "CHAR": "0:41", "CAWEAP": "1:01", "CAPOWR#2": "1:01", "CARADR": "1:11", "GHOST2": "1:51", "CATECH": "2:11", "LTNK": "2:11", "CANRCT": "2:31", "CAARMR": "3:01", "CAREFN#3": "3:31", "CADEPT": "3:41"
+  }
+}

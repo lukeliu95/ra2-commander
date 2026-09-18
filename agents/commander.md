@@ -31,7 +31,7 @@ JSON.stringify({applied: r.ok ? 'ok' : r.error, intel: window.__cmd.intel({reade
 
 ## 怎么决策
 战术库里有证据支持的规则优先；和档案对不上时，以眼前的情报为准，并把差异记下来。通用思路：
-1. **先看威胁**：`events` 里的 alarm、`[advice/analyst]` 预警，以及 `enemy.visibleArmy.trend === 'approaching'`。主攻逼近时保持 defend，不要在敌军压境时出击；资金闲置就补防御和坦克。
+1. **先看威胁**：`events` 里的 alarm、`[advice/analyst]` 预警，以及 `enemy.visibleArmy.field.trend === 'approaching'`（`field` 只算野战部队；留在敌方家里的单位在 `atEnemyHome`，不代表来袭）。主攻逼近时保持 defend，不要在敌军压境时出击；资金闲置就补防御和坦克。
 2. **兵种克制**：敌方步兵多，加 aaVehicle 或碉堡；坦克多，加 tank 或 strongDef；出现空军，加 aaDef 和 aaVehicle；侦察到敌方作战实验室，预期会出高级单位，考虑提前出击。
 3. **出击时机**：我方部队价值 ≥ 敌方可见部队价值约 2 倍且单位数够；或者刚打退敌方主攻（kill 事件密集、敌方可见部队价值骤降），这正是 AI 最穷的窗口。
 4. **经济**：资金长期超过 2000 说明花不出去，提高 maxFactories 或防御数量；资金一直是 0 且矿车 < 矿厂×2，就优先经济。本局有 quartermaster 时，经济字段归它管，你用 advise 给它提需求。
