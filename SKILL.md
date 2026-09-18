@@ -55,6 +55,26 @@ python3 <skill>/scripts/evolve.py new-match --opponent ai-easy --map "岛屿之�
 
 任务书很长，不要整段抄进 prompt，让 agent 自己去读，免得抄错。实时 agent 要在开局**之前**派出，开局第一秒就在线；开局阶段由执行层自动处理，不用等它们读完文件。改过模板后，用 `evolve.py briefs --match <id>` 重新渲染。
 
+**模型路由（取决于本机是否注册了 `vercel` provider）**：本仓库的约定是把 `commander` 走 Vercel AI Gateway
+的 `typesafe-ai/jev`。派它**之前**先跑一次 `list_subagent_models`，按结果分两种走法：
+
+- **看得到 `vercel`** → 显式传 `provider: vercel`、`model: typesafe-ai/jev`。其余角色
+  （`analyst` / `quartermaster` / `learner`）用项目默认模型，不要跟着改。
+- **看不到 `vercel`** → 按项目默认模型正常开局。这是"本机没配这个 provider"的既定行为，**不是静默回退**：
+  别人克隆这个公开仓库时并没有 `vercel`，skill 不该因此拒绝服务。
+
+  **但如果你这一局的本意就是要用 `jev`**（用户点名要用，或你正在验证这条链路），那**不要用默认模型开局**——
+  去用别的模型跑一局会把"jev 行不行"这个问题悄悄变成"别的模型行不行"。先告诉用户 `vercel` 未注册
+  （GUI Settings 里 provider id 用 `vercel`），等注册好再开。
+
+**开赛前体检（指挥官走 `jev` 时必须做）**：`jev` 在 Gateway 目录里的元数据是 `type: evaluation`、
+`context_window: 0`、`max_tokens: 0`、不带 `tool-use` 标签，与本项目对指挥官的预期可能不匹配。
+所以在派出 commander 之后、点"开始游戏"之前，让它完成**至少一次工具调用**（例如 Read `plan_used.json`）
+并把结果回出来：
+- 体检通过 → 正常开局。
+- 体检失败（无法调用工具 / 上下文为 0 / 直接报错）→ **不要开局**，把失败形态原样报给用户。
+  指挥官拿不到工具 = 整局没有战略决策，开局只会白送一局。
+
 ### 5. 开局
 进入 单机模式 → 遭遇战 → 开始游戏。10 秒内确认 `window.__cmd.started === true`，并且日志里有展开 MCV 和排产电厂。没启动的话，退出这局，刷新页面，从第 3 步重来：开局后才装的陷阱抓不到对象。
 
