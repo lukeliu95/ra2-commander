@@ -77,7 +77,7 @@ function ra2Runtime() {
     const enemyStart = () => starts[liveEnemy()];
     const baseUnits = g.getGeneralRules().baseUnit;
     const M = C.mem = {side: null, sideKey: null, enemyBuildings: new Map(), enemyTypes: new Map(), myIds: new Map(), enemyUnitIds: new Map(),
-      armyHist: [], approach: null, alarm: false, airSeen: false, attack: null, scoutId: null, scouted: false, repairing: new Set(),
+      armyHist: [], approach: null, alarm: false, airSeen: false, attack: null, scoutId: null, scouted: false, scoutRetryAt: 0, scoutTries: 0, repairing: new Set(),
       lastOrder: new Map(), pendingPlace: 0, lastTick: {}, oreTiles: [], siegeTarget: null, siegeHit: new Map(), noArmySince: null,
       av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null, stillTicks: new Map(), hoardSince: null, hoardWarned: 0, defend: null, defendBroken: false, airNearWarned: false,
       // Cumulative battle tallies. Both real-time roles independently mis-added the exchange ratio in match-009
@@ -157,7 +157,11 @@ function ra2Runtime() {
       }
       if (rules.isBaseDefense) {
         const k = buildings.filter(b => b.rules.isBaseDefense).length;
-        const side = (k % 3) - 1;
+        // The anti-armour tower sits ON the enemy axis, never swung off it. Cheap defences can spread to cover
+        // flanks; the one tower that counters heavy armour cannot afford to. match-014: the only ATESLA was
+        // rotated onto the base's due east (79,118) while the threat came from the north-east, and its range of 8
+        // did not reach the engagement (9.2-20.1 tiles away) — it never fired a shot until 8:47 and died at 8:49.
+        const side = rules.name === R('strongDef') ? 0 : (k % 3) - 1;
         return {x: Math.round(base.x + dir.x * P.defenseDistance - dir.y * side * 4), y: Math.round(base.y + dir.y * P.defenseDistance + dir.x * side * 4)};
       }
       return {x: Math.round(base.x - dir.x * 3), y: Math.round(base.y - dir.y * 3)};
@@ -273,15 +277,29 @@ function ra2Runtime() {
           // placed by 3:47 (74s+ to build vs. 34s in match-005) while heavy armor/high-value infantry (LTNK,
           // GHOST2) were already closing in — the one thing that actually counters them never got funded in time.
           const groundNear = S.hostile.some(o => !isAir(o) && !o.isBuilding() && !o.rules.harvester && cost(o) >= 500 && S.buildings.some(b => d2(xy(b), xy(o)) < nearRadius));
-          for (const [role, n] of Object.entries(wantDefenses(P, av))) {
+          // Priority is explicit, and `break` now fires only when something was actually queued. It used to sit
+          // outside the `if`, so the loop evaluated only the FIRST unsatisfied role and gave up; with
+          // wantDefenses()' key order (baseDef -> aaDef -> strongDef) an unaffordable baseDef therefore vetoed
+          // every later defence. match-014: at 7:40 the commander raised baseDef 3->4 and strongDef 1->2 in one
+          // patch, baseDef could never be satisfied (credits pinned at 0), and strongDef — the only tower that
+          // does anything against MGTK/SREF — was never even evaluated for 86 seconds, so the second ATESLA
+          // never reached the queue. That one mis-placed `break` is the first link in this match's losing chain.
+          const wants = wantDefenses(P, av);
+          const DEF_PRIORITY = ['strongDef', 'aaDef', 'baseDef'];
+          const roles = [...DEF_PRIORITY.filter(r => r in wants), ...Object.keys(wants).filter(r => !DEF_PRIORITY.includes(r))];
+          for (const role of roles) {
+            const n = wants[role];
             const name = R(role);
-            if ((counts[name] || 0) >= n || !av.has(name)) continue;
+            if (!n || (counts[name] || 0) >= n || !av.has(name)) continue;
             const c = (game.rules.getObject(name, 2) || {}).cost || 0;
             const aaUrgent = role === 'aaDef' && airNear && pd.credits >= 300;
             const strongUrgent = role === 'strongDef' && groundNear && pd.credits >= c * 0.3;
             const urgent = aaUrgent || strongUrgent;
-            if ((pd.credits > 700 && pd.credits >= c * 0.5) || (M.alarm && c <= 700) || urgent) { my.queueForProduction(Q.Armory, name, 2, 1); log('build', `排产防御 ${name}（${c}，资金 ${pd.credits}${urgent ? '，敌方逼近，绕过资金门槛' : ''}）`); }
-            break;
+            if ((pd.credits > 700 && pd.credits >= c * 0.5) || (M.alarm && c <= 700) || urgent) {
+              my.queueForProduction(Q.Armory, name, 2, 1);
+              log('build', `排产防御 ${name}（${c}，资金 ${pd.credits}${urgent ? '，敌方逼近，绕过资金门槛' : ''}）`);
+              break;
+            }
           }
           if ((airNear || groundNear) && !M.airNearWarned) { M.airNearWarned = true; log('warn', `敌方${airNear ? '飞行单位' : ''}${airNear && groundNear ? '/' : ''}${groundNear ? '重型单位' : ''}正在基地附近逗留：相应防御排产已绕过资金门槛`); }
           else if (!airNear && !groundNear) M.airNearWarned = false;
@@ -399,8 +417,27 @@ function ra2Runtime() {
       const scout = M.scoutId ? mine.find(o => o.id === M.scoutId) : null;
       if (P.scout && !M.scouted) {
         const es = enemyStart();
-        if (!M.scoutId) { const dog = mine.find(o => o.name === R('dog')); if (dog) { M.scoutId = dog.id; my.orderUnits([dog.id], ORD.Move, es.x, es.y); log('scout', `派 ${dog.name} 去侦察敌方出生点`); } }
-        else if (!scout) { M.scouted = true; log('scout', '侦察犬已阵亡，侦察结束'); }
+        if (!M.scoutId) {
+          // Bounded retry with a gap between attempts so a dead dog does not turn into one dog per tick.
+          if (now >= (M.scoutRetryAt || 0)) {
+            const dog = mine.find(o => o.name === R('dog'));
+            if (dog) { M.scoutId = dog.id; M.scoutTries = (M.scoutTries || 0) + 1; my.orderUnits([dog.id], ORD.Move, es.x, es.y); log('scout', `派 ${dog.name} 去侦察敌方出生点（第 ${M.scoutTries}/${SCOUT_MAX_TRIES} 次）`); }
+          }
+        } else if (!scout) {
+          // A dead dog used to end scouting for the rest of the match. That is now the most expensive single gap
+          // in the system: "never attack without scouted static defences" is doctrine (match-013), so losing the
+          // dog means never being allowed to attack at all. match-014: three dogs died to a six-JUMPJET screen
+          // parked mid-map, knownBuildings stayed empty for the whole match, and the commander had to reset
+          // M.scouted by hand three times just to keep trying. A dog costs 200; fighting blind costs the game.
+          M.scoutId = null;
+          if ((M.scoutTries || 0) >= SCOUT_MAX_TRIES) {
+            M.scouted = true;
+            log('warn', `侦察犬已连续阵亡 ${M.scoutTries} 次，放弃侦察——转攻前置条件（敌基地静态防御）将无法满足，只能靠位置先验`);
+          } else {
+            M.scoutRetryAt = now + SCOUT_RETRY_SEC;
+            log('scout', `侦察犬阵亡（第 ${M.scoutTries}/${SCOUT_MAX_TRIES} 次），${SCOUT_RETRY_SEC} 秒后重派`);
+          }
+        }
         else if (dist(xy(scout), es) < 8) { M.scouted = true; my.orderUnits([scout.id], ORD.Move, base.x, base.y); log('scout', '侦察到敌方基地，召回侦察犬'); }
       }
       const units = mine.filter(o => o.id !== M.scoutId || M.scouted);
@@ -417,6 +454,15 @@ function ra2Runtime() {
         const safe = hp(m) >= 0.9 && !S.hostile.some(o => !o.isBuilding() && !o.rules.harvester && d2(xy(m), xy(o)) < 25);
         if (!safe && now - info.t < 40) continue;
         const spot = (M.oreTiles.length ? M.oreTiles.reduce((a, t) => d2(t, xy(m)) < d2(a, xy(m)) ? t : a) : null) || xy(m);
+        // Do not force them back into a patch that is still being camped. The 40s timeout used to re-dispatch
+        // regardless of what was waiting there: match-014 force-rearmed at 8:15 and 8:19 and lost three CMIN
+        // within 3-11 seconds of arriving (every kill followed a re-dispatch by 2-11s, all 8 CMIN lost that way).
+        // Miners cost 1400 and there are only six; waiting is cheaper than feeding them one at a time.
+        const patchHot = S.hostile.some(o => !o.isBuilding() && !o.rules.harvester && d2(xy(o), spot) < 12 * 12);
+        if (patchHot) {
+          if (every('minerPatchHot', 15)) log('reflex', `矿区 @${spot.x},${spot.y} 仍有敌军，暂不重派矿车（已等待 ${Math.round(now - info.t)} 秒）`);
+          continue;
+        }
         // Re-arm the engine's own gathering AI, do NOT issue another Move. match-010's fix re-dispatched with
         // ORD.Move — the very order that cancels the harvester AI — so the miner travelled to the patch and then
         // sat there with zero orders and zero tasks, mining nothing; match-012 ended with six harvesters idle,
@@ -747,6 +793,8 @@ function ra2Runtime() {
     // squad is limited to our units already within 14 tiles of that attacker, so this can never become a long
     // charge out of tower cover — it only ever makes units that are already in the fight shoot back.
     const RETALIATE_R = 12, RETALIATE_SQUAD_R = 14, RETALIATE_MAX_SIEGING = 3;
+    // Scout retries: a single dead dog must not end reconnaissance for the whole match (see the scout block).
+    const SCOUT_MAX_TRIES = 3, SCOUT_RETRY_SEC = 20;
     function retaliate(S) {
       const now = sec();
       const victims = [];
@@ -766,6 +814,12 @@ function ra2Runtime() {
         const near = hostiles.filter(e => d2(xy(e), vp) < RETALIATE_R ** 2);
         if (!near.length) continue;
         const tgt = near.reduce((a, e) => (d2(xy(e), vp) < d2(xy(a), vp) ? e : a));
+        // While defending, only answer inside our own defensive shell. match-014: four retaliations (20 unit-
+        // instances) were baited by a miner dying 20-27 tiles out with its attacker standing 13-18 tiles from the
+        // nearest tower — inside nobody's range. T-011/T-021 exist precisely to stop the army being dragged out
+        // of tower cover, and retaliation must not become a back door around them. During an attack there is no
+        // shell to protect, so the squad cap below is what applies there instead.
+        if (!M.attack && !S.buildings.some(b => d2(xy(b), xy(tgt)) < (C.plan.defenseDistance + C.plan.leashRadius + 4) ** 2)) continue;
         const key = 'retaliate:' + tgt.id;
         let squad = myUnits
           .filter(u => d2(xy(u), xy(tgt)) < RETALIATE_SQUAD_R ** 2)

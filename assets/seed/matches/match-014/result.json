@@ -1,0 +1,9 @@
+{
+  "match": "match-014",
+  "result": "lost",
+  "durationSec": 546,
+  "planVersion": "v012",
+  "opponent": "ai-easy",
+  "notes": "v012首战负：JUMPJET空袭被2NASAM+ATESLA+GAAIRC顶住，但5:12-7:09敌6架JUMPJET静止(105,92)封死侦察，3只军犬全灭knownBuildings为空；7:12起MGTK/SREF地面波18单位/8340→1单位/600。零进攻，4条进攻侧机制未验证",
+  "recordedAt": "2026-09-18T17:15:45"
+}
