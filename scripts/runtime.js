@@ -11,9 +11,15 @@ function ra2Runtime() {
       baseDef: 'GAPILL', aaDef: 'NASAM', strongDef: 'ATESLA', tank: 'MTNK', aaVehicle: 'FV', heavyTank: 'SREF', inf: 'E1', aaInf: 'JUMPJET', dog: 'ADOG', engineer: 'ENGINEER'},
     NA: {power: 'NAPOWR', refinery: 'NAREFN', barracks: 'NAHAND', factory: 'NAWEAP', radar: 'NARADR', tech: 'NATECH', depot: 'NADEPT', harv: 'HARV',
       baseDef: 'NALASR', aaDef: 'NAFLAK', strongDef: 'TESLA', tank: 'HTNK', aaVehicle: 'HTK', heavyTank: 'APOC', inf: 'E2', aaInf: 'FLAKT', dog: 'DOG', engineer: 'SENGINEER'},
-    // Confederation (third faction seen in match-005). baseDef/aaDef/aaInf unconfirmed — verified from `unit_rules.json` only up to what appeared on screen.
+    // Confederation (third faction seen in match-005). The baseDef/aaDef/strongDef entries were placeholders copied
+    // from the NA row and were wrong: match-017 (our first CA game since the table was written) produced ZERO static
+    // defences for 7:46 with no warning, because av.has('NALASR') is false for Confederation and the defence loop
+    // silently skips what it cannot build. Verified names: CAPILL is the buildable pillbox (it was queued and placed
+    // in match-017 at 9:58), and MSAM/CTESLA were read out of game.rules live during the same match (both
+    // isBaseDefense, 1000/900HP RedEye3 and 1500/600HP PrismShot). ownDefence() now warns if any of these ever
+    // stops being producible, so a wrong name can never hide again.
     CA: {power: 'CAPOWR', refinery: 'CAREFN', barracks: 'CAHAND', factory: 'CAWEAP', radar: 'CARADR', tech: 'CATECH', depot: 'CADEPT', harv: 'CHAR',
-      baseDef: 'NALASR', aaDef: 'NAFLAK', strongDef: 'ATESLA', tank: 'LTNK', aaVehicle: 'BGGY', heavyTank: 'HOWI', inf: 'PLA', aaInf: 'HOVI', dog: 'ADOG', engineer: 'SENGINEER'},
+      baseDef: 'CAPILL', aaDef: 'MSAM', strongDef: 'CTESLA', tank: 'LTNK', aaVehicle: 'BGGY', heavyTank: 'HOWI', inf: 'PLA', aaInf: 'HOVI', dog: 'ADOG', engineer: 'SENGINEER'},
   };
   const DEFAULT_PLAN = {
     stance: 'defend',
@@ -547,7 +553,16 @@ function ra2Runtime() {
           for (const role of roles) {
             const n = wants[role];
             const name = R(role);
-            if (!n || (counts[name] || 0) >= n || !av.has(name)) continue;
+            if (!n || (counts[name] || 0) >= n) continue;
+            if (!av.has(name)) {
+              // A defence role whose building this side cannot produce is a permanently unsatisfiable target, and the
+              // loop simply skips it — every tick, forever, without a single log line. match-017 spent 7 minutes 46
+              // seconds with zero static defences and no warning, because the CA row mapped baseDef to NALASR (the
+              // Soviet sentry gun) and av.has('NALASR') is false for Confederation; the commander and the analyst
+              // had to reverse-engineer it from a buildOrder skip message. Say so instead of spinning silently.
+              if (every('defUnavail:' + role, 60)) log('warn', `防御目标 ${role}(${name}) 本阵营不可造：这条目标永远不会达成（检查 SIDES 表里该阵营的映射）`);
+              continue;
+            }
             const c = (game.rules.getObject(name, 2) || {}).cost || 0;
             const aaUrgent = role === 'aaDef' && airNear && pd.credits >= 300;
             const strongUrgent = role === 'strongDef' && groundNear && pd.credits >= c * 0.3;
