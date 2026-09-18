@@ -557,12 +557,24 @@ function ra2Runtime() {
             if (!av.has(name)) {
               // A defence role whose building this side cannot produce is a permanently unsatisfiable target, and the
               // loop simply skips it — every tick, forever, without a single log line. match-017 spent 7 minutes 46
-              // seconds with zero static defences and no warning, because the CA row mapped baseDef to NALASR (the
-              // Soviet sentry gun) and av.has('NALASR') is false for Confederation; the commander and the analyst
-              // had to reverse-engineer it from a buildOrder skip message. Say so instead of spinning silently.
-              if (every('defUnavail:' + role, 60)) log('warn', `防御目标 ${role}(${name}) 本阵营不可造：这条目标永远不会达成（检查 SIDES 表里该阵营的映射）`);
+              // seconds with zero static defences and no warning, because the CA row mapped baseDef to NALASR and
+              // av.has('NALASR') is false for Confederation; the commander and the analyst had to reverse-engineer
+              // it from a buildOrder skip message. Say so instead of spinning silently.
+              // But "unavailable right now" is NOT "unbuildable": almost every defence sits behind a prerequisite
+              // (ATESLA needs RADAR, GAPILL needs BARRACKS), so early in a match every one of them is missing from
+              // the available list for entirely benign reasons. The first version of this warning fired on the
+              // first tick of match-018 and declared a permanent mapping error that did not exist — measured live,
+              // the player had three buildable objects at 0:05 and not one of them was a defence. Only a role that
+              // stays unavailable well past the point where its prerequisites should exist is suspicious, which is
+              // the same 60-second rule the buildOrder path already uses.
+              M.defUnavail ??= {};
+              M.defUnavail[role] ??= now;
+              if (now - M.defUnavail[role] > 60 && every('defUnavail:' + role, 60)) {
+                log('warn', `防御目标 ${role}(${name}) 已连续 ${Math.round(now - M.defUnavail[role])} 秒不可造。前置建筑（雷达/兵营等）到位后仍不可造，才是本阵营映射错误（查 SIDES 表）；若前置还没到位，忽略本条`);
+              }
               continue;
             }
+            if (M.defUnavail && M.defUnavail[role] !== undefined) delete M.defUnavail[role];
             const c = (game.rules.getObject(name, 2) || {}).cost || 0;
             const aaUrgent = role === 'aaDef' && airNear && pd.credits >= 300;
             const strongUrgent = role === 'strongDef' && groundNear && pd.credits >= c * 0.3;
@@ -1350,14 +1362,17 @@ function ra2Runtime() {
       }
       const av = M.av = avail();
       production(S, av);
-      // Whole-table self-check, deferred so it does not fire on buildings that are merely tech-gated. SIDES maps
-      // plan role names to engine building names and the defence system lives or dies on it: match-017 sat on zero
-      // static defences for 7:46 because the CA row pointed baseDef at NALASR, a Soviet building, and the defence
-      // loop skipped it silently, forever. The defence path now warns on its own, but the same trap applies to
-      // vehicleMix/infantryMix/buildOrder entries, so once the opening build is done (60s in) every role the plan
-      // actually references gets one check. tech/depot/strongDef are excluded: those are legitimately unavailable
-      // until a lab, a service depot or a radar exists, and warning about them would be noise, not signal.
-      if (!M.sideChecked && M.side && sec() >= 60) {
+      // Whole-table self-check. SIDES maps plan role names to engine building names and the defence system lives or
+      // dies on it: match-017 sat on zero static defences for 7:46 because the CA row pointed baseDef at NALASR, a
+      // Soviet building, and the defence loop skipped it silently, forever. The defence path now warns on its own,
+      // but the same trap applies to vehicleMix/infantryMix/buildOrder entries, so every role the plan references
+      // gets one check.
+      // Timing is the whole trick here. "Not in the available list" is normal for anything with a prerequisite, so
+      // an early check reports phantom mapping errors — match-018's defence-path variant fired on its first tick,
+      // when the player had three buildable objects and none of them a defence. 150s is late enough that barracks,
+      // refinery and radar are normally standing, so an unavailable role at that point means something real.
+      // tech/depot/strongDef are excluded anyway: they legitimately wait on a lab, a depot or a radar.
+      if (!M.sideChecked && M.side && sec() >= 150) {
         M.sideChecked = true;
         const LATE = new Set(['tech', 'depot', 'strongDef']);
         const roles = new Set([...C.plan.buildOrder, ...Object.keys(C.plan.vehicleMix || {}),
