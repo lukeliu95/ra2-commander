@@ -609,8 +609,23 @@ function ra2Runtime() {
       if (P.stance !== 'attack' || !M.attack) return;
       const group = armyUnits.filter(u => M.attack.ids.has(u.id));
       if (!group.length) return;
-      if (enemyUnits.some(e => group.some(u => d2(xy(u), xy(e)) < 144))) {
+      const near = enemyUnits.filter(e => group.some(u => d2(xy(u), xy(e)) < 144));
+      if (near.length) {
         if (M.siegeTarget) { log('siege', '附近出现敌军，暂停拆建筑，先打部队'); M.siegeTarget = null; }
+        // match-011: a single 56%-hp FV parked 9 tiles away held the siege off from 6:09 to 8:43 while all 16 units
+        // of the strike group sat idle inside the enemy base — AttackMove had already reached its point, so nothing
+        // ever engaged the blocker. When the blockers are small next to the group, attack the nearest one directly.
+        const gv = group.reduce((s, o) => s + cost(o), 0), nv = near.reduce((s, o) => s + cost(o), 0);
+        if (nv <= gv * 0.25) {
+          const gc = centroid(group);
+          const tgt = near.reduce((a, o) => d2(xy(o), gc) < d2(xy(a), gc) ? o : a);
+          const strikers = group.filter(u => { const h = M.siegeHit.get(u.id); return !h || h.id !== tgt.id || now - h.t > 6; });
+          if (strikers.length) {
+            my.orderUnits(strikers.map(u => u.id), ORD.Attack, tgt.id);
+            for (const u of strikers) { M.siegeHit.set(u.id, {id: tgt.id, t: now}); M.lastOrder.set(u.id, {k: 'siege:' + tgt.id, t: now}); }
+            if (every('siegeClear', 10)) log('siege', `拆建筑被 ${JSON.stringify(tally(near.map(o => o.name)))}（价值 ${nv}，不到我方 ${gv} 的 25%）挡住：全组直接攻击 ${tgt.name} @${xy(tgt).x},${xy(tgt).y}`);
+          }
+        }
         return;
       }
       const candidates = S.hostile.filter(o => o.isBuilding());

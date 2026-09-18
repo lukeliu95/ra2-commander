@@ -1,0 +1,9 @@
+{
+  "match": "match-011",
+  "result": "won",
+  "durationSec": 621,
+  "planVersion": "v009",
+  "opponent": "ai-easy",
+  "notes": "v009 三波塔线全歼(20 JUMPJET+5 FV+6 MTNK)后 5:40 转攻，攻城 6:09-9:00 被 1 辆 FV 卡住 ~3 分钟，9:55 热补丁触发后 10:21 拆完",
+  "recordedAt": "2026-09-18T13:52:01"
+}
