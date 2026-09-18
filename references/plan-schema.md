@@ -22,6 +22,29 @@
 | `siegeAutoAttackUnits` / `siegeQuietSeconds` | 防守姿态下连续 N 秒看不到敌军且我方单位 ≥ 门槛，就自动转进攻 | 8 / 10 |
 | `scout` / `repair` | 开局派军犬侦察；建筑血量 <70% 自动修理。**军犬阵亡不再等于侦察结束**：最多重试 3 次、每次间隔 20 秒（日志 `侦察犬阵亡（第 N/3 次），20 秒后重派`），三次全败才 `scouted=true` 并记一条 warn 说明"转攻前置条件将无法满足"。在"没侦察到敌基地防御就不许进攻"成为硬制度之后，丢一只狗曾经等于**整局都不许进攻**——match-014 里 3 只犬全灭、`knownBuildings` 整局为空，指挥官不得不手工重置状态机 3 次。一只狗 200，瞎着打的代价是一整局。 | true / true |
 | `minerEscort` | 从部队里抽这么多个（按速度优先）派到**各矿厂所对应的矿区矿格**上待命，而不是等矿车挨打了才反应。**必须是矿区而不是矿厂建筑**：矿车是在基地外的矿格上挖矿的，护卫站在矿厂旁边拦不住任何去野矿打矿车的人（match-009 用 `minerEscort:1` 打完整局零可观测效果，指挥官追查到就是这个实现偏差；找不到已知矿格时退回矿厂坐标）。默认 0=关闭，是预防性字段——没证据显示对手会点名偷袭矿车之前不建议开（T-026，match-006 只是设计提案，match-009 仍未实战验证） | 0 |
+| `tacticalMode` / `tacticalInterval` / `tacticalMaxOrders` / `tacticalSuppressSec` / `tacticalBreakRatio` | **查打一体（recon-strike）**，match-016 复盘后新增。开启后执行层每 `tacticalInterval` 秒跑一次 `tacticalTick`：重建一份结构化战场态、按档位（quiet / screen / engage / breach）下最多 `tacticalMaxOrders` 条动作，并在**下一次刷新时回读验证上一轮动作**（失败即按 `fallback` 降级，账本记在 `M.tacFailed`）。`tacticalSuppressSec` 是动作下达后抑制宏逻辑（`army()` 迎击分支）的秒数——不抑制的话 0.8 秒后宏指令会把战术判决冲掉。`tacticalBreakRatio` 是"破线"滞回阈值。**默认 `false`（关闭）**，不开则行为与改造前逐位一致。接口见下方"查打一体接口" | `false` / 3 / 3 / 4 / 0.45 |
+
+## 查打一体接口（`C.tacRead` / `C.tacAct`）
+
+起因：match-016 复盘发现执行层每 0.8 秒已经在做实时判断（`army()`），但那是 31 条手写 if-then；而**"读战场 → 下动作 → 回读验证"这条链一次都没被闭合过**——agent 只能改阈值（`C.apply` 的 key 白名单拒绝任何未知字段），看不到"某个单位此刻在做什么"，也无法表达"如果它分兵就抽两辆坦克"这类条件动作。
+
+- `C.tacRead({execute=false, maxOrders})` → 战场态 + 建议动作。关键字段：
+  - `phase`：`quiet`（无野战威胁）/ `screen`（≤38 格）/ `engage`（≤22）/ `breach`（≤12，已进防线）
+  - `threat`：`{value, ratio, lead, byType, airValue, heavyValue, trend}`。`trend` 是**跨采样的变化率**（`leadTilesDelta` / `threatDelta` / `myValueDelta`）——用来补 12 秒采样网格长于交战时长的坑
+  - `mine`：`{value, count, weak, immobile, aa}`；`line`：`{anchor, towerRange, towers}`
+  - `planned`：本轮建议动作（`hold` / `focus` / `reposition` / `withdraw` / `screen` / `reinforce`），每条带 `why` 与人读得懂的 `fallback`
+  - `lastVerify`：**上一轮动作的回读结果**（`actions` / `failed` / `totalFailed`）——闭环的证据
+  - `execute: true` 时直接下发，返回 `issued`
+- `C.tacAct({ops:[{op, ids, at, targetId}]})` → 手工下发指定动作。动作语义：
+  - `hold`：据守在塔射程内（`standoff:1.5` 格内沿），不追出防线
+  - `focus`：集火指定敌方单位
+  - `reposition`：转进到指定点（默认取塔内沿）
+  - `withdraw`：残血单位撤到后方
+  - `screen`：防空车居中占位（贴着边缘会被逐个点掉）
+  - `reinforce`：逐辆补进塔线，不等齐
+- **站位规则**：占位点同时受两个上界约束——`塔射程 - 1.5` 格，以及 `距首要威胁 ≥ 4 格`。第二个上界是必须的：只按射程外推的话，威胁在 18 格时占位点会落到离敌 2.8 格处，那是"在塔的射程里"同时"在敌人的射程里"，等于用坦克换坦克。
+- **仲裁**：`tacDo` 是唯一的下发点（agent 来的和反射来的都走它），它同时写入抑制窗口；`army()` 的迎击分支检测到这个窗口就让位。唯一的例外是"防守交战打崩了要撤回"（`M.defendBroken`）——那条永远优先。
+- **回读的可信度依赖 verify 不抛错**：`tacRefresh` 里 verify 是 try/catch 的（设计上不允许用户的动作谓词把整个 tick 打挂），但这意味着**一个写错的 verify 会静默地永远判"通过"**。第一次接线测试就抓到过一次（`hold` 的 verify 引用了不存在的作用域），所以 `verify` 只允许从传入的 `st` 取值，禁止引用 `read()` 的局部变量。
 
 ## 执行层反射（不需要 agent 参与）
 - 敌军进入我方建筑 `threatRadius` 范围，或攻击矿车，并且在拴绳范围内：全军攻击移动到防御塔旁的迎击点，迎击半径取 `min(leashRadius, 锚定塔武器射程-1)`（match-005 证明过：不按塔的实际射程算，部队会站在塔火力覆盖不到的地方对射送死）。**这场交战会记录开始时的部队价值，跌到 `defendRetreatRatio` 就撤回基地不再硬拼**（match-007 之前这里没有任何退出条件：3 MTNK+5 E1 在原地被 5 个卧倒 E1 磨到 0 才停手，`threatValue` 的伤害加权只喂给了日志和"进攻部队要不要回防"两处，从没接到防守分支的决策上）。进攻途中家里的威胁超过我方部队价值 25%：撤回主力，stance 变回 defend。

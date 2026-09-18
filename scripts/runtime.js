@@ -24,6 +24,9 @@ function ra2Runtime() {
     attackMinUnits: 14, retreatRatio: 0.35, defendRetreatRatio: 0.4, defendMinValue: 800, attackTarget: 'auto',
     siegeAutoAttackUnits: 8, siegeQuietSeconds: 10,
     scout: true, repair: true,
+    // 查打一体（recon-strike）——默认关闭，由角色显式开启。开启后允许把『实时判断』交给
+    // 主 agent 或本地的 tacticalTick 反射，二者读同一份 C.tacState、下同一组动作。
+    tacticalMode: false, tacticalInterval: 3, tacticalMaxOrders: 3, tacticalSuppressSec: 4, tacticalBreakRatio: 0.45,
   };
   const ECON_FIELDS = ['buildOrder', 'targetRefineries', 'minersPerRefinery', 'maxMiners', 'maxFactories', 'infantryCap', 'repair'];
 
@@ -90,9 +93,219 @@ function ra2Runtime() {
       // Retaliation bookkeeping: last seen health fraction per own object. A drop between samples means we are
       // being shot at right now — healthTrait carries no last-attacker field, so the shooter is attributed by
       // proximity. `retaliating` throttles repeat orders per (unit, target) pair.
-      lastHp: new Map(), retaliating: new Map(), finishing: false};
+      lastHp: new Map(), retaliating: new Map(), finishing: false,
+      // 查打一体：上一轮战场态（供 trend 算变化率）、本轮动作账本、宏逻辑抑制窗口、破线滞回位。
+      tacState: null, tacActions: [], tacAt: 0, tacBreach: false, suppressedUntil: 0, tacVerified: [], tacFailed: 0};
     const sec = () => g.getCurrentTick() / rate;
     const every = (key, s) => { const now = sec(); if (now - (M.lastTick[key] ?? -1e9) >= s) { M.lastTick[key] = now; return true; } return false; };
+
+    // ===== TACTICAL_CORE_BEGIN（由 patch-tactical.py 内联，勿手改此块）=====
+    const DEFAULT_ACTIVE = {
+      // 单位状态判定阈值
+      weakHp: 0.4,          // 血量低于此值 → 优先撤离/后置
+      driftTiles: 3,        // 执行 Hold 后漂移超过此格 → 判定指令失效，重下
+      minGapToThreat: 4,    // 占位点与首要威胁的最小间距：宁可在塔射程内沿，也不跟它贴身换血
+      // 交火几何
+      standoff: 1.5,        // 站在"塔射程 - 1.5 格"处，避免质心取整把单位卡到射程外
+      minTowerGap: 0,       // 留白，便于以后按阵营调
+      // 威胁分档（以"首要威胁到我方基地的距离"计）
+      farTiles: 38, midTiles: 22, nearTiles: 12,
+      // 压制窗口：下达动作后抑制宏逻辑的秒数
+      suppressSec: 4,
+      // 每次刷新最多下几条动作
+      maxOrders: 3,
+      // 撤退阈值：我方部队价值 / 交出时的价值
+      breakRatio: 0.45,
+    };
+
+    const makeTacticalEngine = (D) => {
+      const {d2, dist, centroid, sideOf, isAir, isCombat, valOf} = D;
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const round1 = v => Math.round(v * 10) / 10;
+      // 只接受 {x,y} 的质心（D.centroid 吃的是游戏对象，不能混用）
+      const centroidOf = pts => pts.length
+        ? {x: Math.round(pts.reduce((s, p) => s + p.x, 0) / pts.length), y: Math.round(pts.reduce((s, p) => s + p.y, 0) / pts.length)}
+        : null;
+
+      // ---- 动作构造：每个动作都带 verify 谓词与 fallback，闭环在此定义 ----
+      // 注意：verify 只能从传入的 st（战场态）取值，绝不引用 read() 的局部变量——否则会静默抛错，
+      // 而 tacRefresh 的 try/catch 会把抛错当"通过"，闭环就变成摆设（本仓库第一次跑接线测试时真的踩了）。
+      const actCfg = {...DEFAULT_ACTIVE};
+      const driftOf = st => (st && st.cfg ? st.cfg.driftTiles : actCfg.driftTiles);
+      const A = {
+        hold: (ids, at) => ({op: 'hold', ids, at, why: `据守在塔射程内的 (${at.x},${at.y})，不追出防线`,
+          verify: (st) => ids.filter(id => { const u = st.us[id]; return u && dist(u, at) > driftOf(st); }).length <= Math.floor(ids.length / 2),
+          fallback: 'reposition'}),
+        focus: (ids, targetId) => ({op: 'focus', ids, targetId, why: `集火 ${targetId}`,
+          verify: (st) => !!st.enemies[targetId],
+          fallback: 'hold'}),
+        reposition: (ids, at) => ({op: 'reposition', ids, at, why: `转进到 (${at.x},${at.y})`,
+          verify: (st) => ids.filter(id => { const u = st.us[id]; return u && dist(u, at) > driftOf(st); }).length <= Math.floor(ids.length / 2),
+          fallback: 'hold'}),
+        withdraw: (ids, at) => ({op: 'withdraw', ids, at, why: `残血单位撤到 (${at.x},${at.y}) 后方`,
+          verify: (st) => ids.some(id => st.us[id] && dist(st.us[id], st.base) <= dist(at, st.base) + 2),
+          fallback: null}),
+        screen: (ids, at) => ({op: 'screen', ids, at, why: `防空车居中占位 (${at.x},${at.y})，避免贴边被点`,
+          verify: (st) => ids.some(id => st.us[id] && dist(st.us[id], at) <= driftOf(st) + 2),
+          fallback: 'hold'}),
+        reinforce: (ids, at) => ({op: 'reinforce', ids, at, why: `逐辆补进塔线 (${at.x},${at.y})，不等齐`,
+          verify: (st) => ids.some(id => st.us[id] && dist(st.us[id], at) <= 6), fallback: null}),
+      };
+
+      // ---- 战场态：每次刷新都重建并保留上一轮，供"变化率"判断 ----
+      function read(ctx) {
+        const now = ctx.now, P = ctx.P, cfg = {...DEFAULT_ACTIVE, ...(ctx.active || {})};
+        const mine = ctx.mine.filter(isCombat);
+        const enemies = ctx.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
+        const towers = ctx.buildings.filter(b => b.rules.isBaseDefense);
+        const base = ctx.base;
+
+        const us = {};
+        let myValue = 0, weakIds = [], immobile = [], mobile = [], aaIds = [];
+        for (const u of mine) {
+          const p = D.xy(u), h = D.hp(u), v = valOf(u);
+          myValue += v;
+          us[u.id] = {id: u.id, name: u.name, x: p.x, y: p.y, hp: round1(h), value: v,
+            air: !!isAir(u), immobile: !!u.rules.deployer, moving: D.isMoving(u)};
+          if (h < cfg.weakHp) weakIds.push(u.id);
+          if (u.rules.deployer) immobile.push(u.id); else mobile.push(u.id);
+          if (isAir(u) && u.isVehicle && u.isVehicle()) aaIds.push(u.id);
+        }
+
+        const enemyList = [];
+        let threatValue = 0, airValue = 0, heavyValue = 0;
+        for (const e of enemies) {
+          const p = D.xy(e), c = valOf(e), air = !!isAir(e);
+          const ti = ctx.stillTicks ? (ctx.stillTicks.get(e.id) || 0) : 0;
+          const mult = (e.isInfantry && e.isInfantry() && ti >= 2) ? 1.6 : 1;  // T-022：静止步兵通常是卧倒的
+          const w = c * mult, d = Math.round(dist(p, base));
+          enemyList.push({id: e.id, name: e.name, x: p.x, y: p.y, value: c, weighted: Math.round(w),
+            air, distToBase: d, trench: ti >= 2});
+          threatValue += w; if (air) airValue += w; if (c >= 900) heavyValue += w;
+        }
+        enemyList.sort((a, b) => a.distToBase - b.distToBase);
+
+        // 塔线：锚点取离"首要威胁"最近的塔，射程从 rules 实算
+        const tc = centroidOf(enemyList.map(e => ({x: e.x, y: e.y})));
+        const anchor = towers.length
+          ? towers.map(D.xy).reduce((a, t) => (!a || (tc && d2(t, tc) < d2(a, tc))) ? t : a, null)
+          : {x: Math.round(base.x + ctx.dir.x * (P.defenseDistance + 2)), y: Math.round(base.y + ctx.dir.y * (P.defenseDistance + 2))};
+        const towerR = D.towerRange ? D.towerRange(anchor) : null;
+        const reach = towerR || 8;
+        const leadTiles = enemyList.length ? enemyList[0].distToBase : null;
+
+        const st = {
+          time: now, stance: P.stance, base, anchor, towerRange: towerR, cfg,
+          us, enemies: Object.fromEntries(enemyList.map(e => [e.id, e])), enemyOrder: enemyList.map(e => e.id),
+          lead: enemyList[0] || null, leadTiles, myValue, threatValue,
+          ratio: myValue > 0 ? round1(threatValue / myValue) : null,
+          byType: D.tally(enemyList.map(e => e.name)),
+          airValue, heavyValue,
+          weakIds, immobileIds: immobile, mobileIds: mobile, aaIds,
+          towers: towers.map(b => ({...D.xy(b), name: b.name, hp: round1(D.hp(b))})),
+          suppressedUntil: ctx.mem.suppressedUntil || 0,
+        };
+        // 变化率（cross-sample）：威胁是否在近、我方是否在掉血 —— 12 秒网格最大的坑在这里补
+        const prev = ctx.mem.tacState;
+        st.trend = {
+          leadTilesDelta: (prev && prev.leadTiles != null && leadTiles != null) ? round1(leadTiles - prev.leadTiles) : null,
+          threatDelta: prev ? Math.round(threatValue - prev.threatValue) : null,
+          myValueDelta: prev ? Math.round(myValue - prev.myValue) : null,
+        };
+        return st;
+      }
+
+      // ---- 判断：分档 + 双阈值（滞回），避免阈值附近抖动 ----
+      function decide(st, cfgIn, mem) {
+        const cfg = {...DEFAULT_ACTIVE, ...(cfgIn || {})};
+        const out = {phase: null, actions: [], notes: [], breach: false};
+        const lead = st.lead;
+        const ratio = st.ratio;
+        const engaged = lead != null && lead.distToBase <= st.anchor ? true : false;
+
+        // 撤退不是"每次都重新判定"：用滞回 —— 破线后要回到 breakRatio 之上才复位
+        const wasBreach = !!mem.tacBreach;
+        const breach = wasBreach
+          ? (ratio != null && ratio > cfg.breakRatio * 0.8)   // 回到高出 20% 才解除
+          : (ratio != null && ratio > 1 / cfg.breakRatio && st.myValue < 3000 && st.threatValue > st.myValue);
+        out.breach = breach;
+        out.breachCleared = wasBreach && !breach;
+
+        if (!lead) { out.phase = 'quiet'; return out; }
+
+        // 档位
+        let phase;
+        if (lead.distToBase <= cfg.nearTiles) phase = 'breach';
+        else if (lead.distToBase <= cfg.midTiles) phase = 'engage';
+        else if (lead.distToBase <= cfg.farTiles) phase = 'screen';
+        else phase = 'quiet';
+        out.phase = phase;
+
+        // 塔内站位：从锚点朝威胁方向外推到塔射程内沿，但不能贴到威胁脸上。
+        // 两个上界同时生效（match-016 场景：威胁 18 格时若只按射程外推会站到离敌 2.8 格——
+        // 那是"在塔的射程里"却"在敌人的射程里"，等于用坦克换坦克，正是我们要避免的换血）。
+        const dirFromAnchor = (() => {
+          const dx = lead.x - st.anchor.x, dy = lead.y - st.anchor.y, L = Math.hypot(dx, dy) || 1;
+          return {x: dx / L, y: dy / L};
+        })();
+        const anchorToLead = dist(st.anchor, lead);
+        const standTiles = Math.max(2, Math.min((st.towerRange || 8) - cfg.standoff, anchorToLead - cfg.minGapToThreat));
+        const holdPt = {
+          x: Math.round(st.anchor.x + dirFromAnchor.x * standTiles),
+          y: Math.round(st.anchor.y + dirFromAnchor.y * standTiles),
+        };
+        const backPt = {x: st.base.x, y: st.base.y};
+
+        // 优先级 1：残血先撤（这是"打得过就打、打不过就留人"的最低成本动作）
+        const weakOut = st.weakIds.filter(id => {
+          const u = st.us[id];
+          if (!u) return false;
+          // 己方塔线覆盖下、且威胁还在塔射程外 → 不必撤，坐着打更好
+          const covered = st.towers.some(t => dist(u, t) <= (st.towerRange || 8));
+          return !(covered && lead.distToBase > cfg.midTiles);
+        });
+        if (weakOut.length && phase !== 'quiet') out.actions.push({...A.withdraw(weakOut, backPt), prio: 1});
+
+        // 优先级 2：破线 → 全军退回塔内（不是回基地），用塔换血
+        if (phase === 'breach') {
+          const ids = st.mobileIds.filter(id => !weakOut.includes(id));
+          if (ids.length) out.actions.push({...A.reposition(ids, holdPt), prio: 2});
+          const imm = st.immobileIds.filter(id => !weakOut.includes(id));
+          if (imm.length) out.actions.push({...A.hold(imm, holdPt), prio: 2});
+          out.notes.push(`威胁已进 ${lead.distToBase} 格：退回塔线 ${st.towerRange || '?'} 射程内据守，不追出`);
+          return out;
+        }
+
+        // 优先级 3：接火距离 → 防空车居中（贴着边缘会被逐个点掉），步兵据守
+        if (phase === 'engage' || phase === 'screen') {
+          if (st.aaIds.length && st.airValue > 0) out.actions.push({...A.screen(st.aaIds, holdPt), prio: 3});
+          const imm = st.immobileIds.filter(id => !weakOut.includes(id));
+          if (imm.length) out.actions.push({...A.hold(imm, holdPt), prio: 3});
+          const mob = st.mobileIds.filter(id => !weakOut.includes(id) && !st.aaIds.includes(id));
+          if (mob.length) out.actions.push({...A.reposition(mob, holdPt), prio: 3});
+        }
+
+        // 优先级 4：集火选择 —— 混合编队先点"能被塔打到的、价值最高的、血量最低的"
+        if (phase !== 'quiet' && (st.airValue > 0 || st.heavyValue > 0)) {
+          const cand = st.enemyOrder
+            .map(id => st.enemies[id])
+            .filter(e => e.distToBase <= (st.towerRange || 8) + 10)
+            .sort((a, b) => (b.value - a.value) || (a.distToBase - b.distToBase));
+          const shooterIds = [...st.mobileIds, ...st.aaIds].filter(id => st.us[id]);
+          if (cand.length && shooterIds.length) out.actions.push({...A.focus(shooterIds, cand[0].id), prio: 4, targetName: cand[0].name});
+        }
+
+        // 优先级 5：无论哪档，塔线有缺口就逐辆补位（match-012 的"不要等齐"）
+        if (st.mobileIds.length === 0 && st.myValue > 900) out.notes.push('我方可动机动力量为 0：只能靠静态防御，建议立刻补塔/补产能');
+        return out;
+      }
+
+      return {read, decide, actions: A};
+    };
+
+
+    // ===== TACTICAL_CORE_END =====
+
     // A role may map to candidates (e.g. country-specific radar); pick the one that is buildable or already owned.
     const R = n => {
       const v = M.side && M.side[n];
@@ -424,6 +637,9 @@ function ra2Runtime() {
 
     function army(S) {
       const P = C.plan, now = sec();
+      // 仲裁：tac 刚下过动作 → 本 tick 的宏逻辑不覆盖它（否则 0.8s 后宏指令会把战术判决冲掉）。
+      // 唯一的例外是"防线被打穿"这类需要立即全军反应的威胁，仍由下面的报警分支处理。
+      const tacHolding = P.tacticalMode && now < (M.suppressedUntil || 0);
       const base = baseCenter(S.buildings), dir = enemyDir(base);
       const mine = S.mine.filter(isCombat);
       const scout = M.scoutId ? mine.find(o => o.id === M.scoutId) : null;
@@ -581,7 +797,7 @@ function ra2Runtime() {
           log('reflex', `防守交战只剩 ${Math.round(defendRatio * 100)}%（价值 ${myValue}）：撤回基地，不硬拼到全灭（可调 defendRetreatRatio/defendMinValue）`);
         }
         if (M.defendBroken) orderThrottled(defenders, ORD.Move, base.x, base.y, 'retreat', 2);
-        else orderThrottled(defenders, ORD.AttackMove, pt.x, pt.y, 'def', 3);
+        else if (!tacHolding) orderThrottled(defenders, ORD.AttackMove, pt.x, pt.y, 'def', 3);
         return;
       }
       if (M.alarm) { M.alarm = false; M.defend = null; M.defendBroken = false; log('alarm', '威胁解除'); }
@@ -721,6 +937,102 @@ function ra2Runtime() {
       : b.rules.isBaseDefense ? 3
       : b.rules.refinery ? 4
       : 5;
+
+    // ================= 查打一体（recon-strike）=================
+    // 起因（match-016 复盘）：执行层每 0.8s 已在做实时判断，但那是 31 条手写 if-then；
+    // 而"读战场 → 下动作 → 回读验证"这条链一次都没被闭合过。三个缺口的补法：
+    //   (1) 读：C.tacRead() 给结构化战场态（含跨采样 trend），替代在 12 秒网格上手工推演；
+    //   (2) 打：C.tacAct() 让 agent 能下 hold/focus/reposition/withdraw/screen，而不是只调阈值；
+    //   (3) 验：每个动作自带 verify + fallback，执行后回读，失败即降级并在 log 里留下失败数。
+    const tacCfg = () => ({
+      weakHp: 0.4, driftTiles: 3, standoff: 1.5, minGapToThreat: 4,
+      farTiles: 38, midTiles: 22, nearTiles: 12,
+      maxOrders: C.plan.tacticalMaxOrders, breakRatio: C.plan.tacticalBreakRatio,
+    });
+    const tacRally = S => {
+      const base = baseCenter(S.buildings), dir = enemyDir(base);
+      return {x: Math.round(base.x + dir.x * (C.plan.defenseDistance + 2)), y: Math.round(base.y + dir.y * (C.plan.defenseDistance + 2))};
+    };
+    function tacRefresh(S) {
+      if (!S) S = C.state();
+      const base = baseCenter(S.buildings), dir = enemyDir(base);
+      const st = TAC.read({now: sec(), P: C.plan, active: tacCfg(), base, dir,
+        mine: S.mine, hostile: S.hostile, buildings: S.buildings, mem: M, stillTicks: M.stillTicks});
+      st.ally = {inRange3: 0, spread: 0};
+      M.tacState = st;
+      M.tacAt = sec();
+      // 上一轮动作的回读（闭环的核心）：verify 失败的记一条，并留待降级
+      const failed = [];
+      for (const a of (M.tacActions || [])) {
+        let okGo = true;
+        try { okGo = a.verify ? !!a.verify(st) : true; } catch (e) { okGo = true; }
+        if (!okGo) failed.push(a);
+      }
+      if (failed.length) {
+        M.tacFailed += failed.length;
+        for (const a of failed) {
+          if (a.fallback) {
+            const fb = TAC.actions[a.fallback];
+            if (fb) { const na = fb(a.ids, a.at || st.anchor); na.why = `[降级自 ${a.op}] ` + na.why; tacDo(na); log('reflex', `tac 动作 ${a.op} 回读失败，降级为 ${a.fallback}`); }
+          } else {
+            log('warn', `tac 动作 ${a.op} 回读失败且无降级路径（${a.ids.length} 个单位）`);
+          }
+        }
+        M.tacVerified = failed.map(a => a.op);
+      } else if (M.tacActions && M.tacActions.length) {
+        M.tacVerified = M.tacActions.map(a => a.op);
+      }
+      return st;
+    }
+    // 真正下发。单写入点：所有动作（agent 来的和反射来的）都必须走这里，便于审计与仲裁。
+    function tacDo(a) {
+      if (!a || !a.ids || !a.ids.length) return {ok: false, error: '空动作'};
+      const objs = a.ids.map(obj).filter(o => o && !o.isDestroyed);
+      if (!objs.length) return {ok: false, error: '单位已不存在'};
+      M.suppressedUntil = sec() + (C.plan.tacticalSuppressSec ?? 4);
+      const p = a.at || null;
+      const ids = objs.map(o => o.id);
+      switch (a.op) {
+        case 'focus': {
+          const t = obj(a.targetId);
+          if (!t) return {ok: false, error: '目标已不存在'};
+          const tx = xy(t);
+          my.orderUnits(ids, ORD.Attack, tx.x, tx.y);
+          break;
+        }
+        case 'hold':
+        case 'withdraw':
+        case 'screen':
+        case 'reposition':
+        case 'reinforce':
+          if (!p) return {ok: false, error: '缺少目标点'};
+          my.orderUnits(ids, ORD.AttackMove, p.x, p.y);
+          break;
+        default:
+          return {ok: false, error: '未知动作 ' + a.op};
+      }
+      for (const id of ids) M.lastOrder.set(id, {k: 'tac:' + a.op + ':' + a.targetId, t: sec()});
+      M.tacActions = (a.replace ? [] : (M.tacActions || [])).concat([a]);
+      return {ok: true, op: a.op, units: ids.length, at: p, why: a.why};
+    }
+    // 本地反射：即使没有任何 agent 在线，只要 tacticalMode 开着，这条就以 tacticalInterval 跑。
+    function tacticalTick(S) {
+      if (!C.plan.tacticalMode) return;
+      const st = tacRefresh(S);
+      const dec = TAC.decide(st, tacCfg(), M);
+      const keep = dec.breach;
+      if (keep !== M.tacBreach) {
+        log('reflex', `tac 破线判定 ${M.tacBreach} → ${keep}${dec.breachCleared ? '（威胁已缓解，解除）' : ''}`);
+        M.tacBreach = keep;
+      }
+      const acts = dec.actions.slice(0, Math.max(1, C.plan.tacticalMaxOrders));
+      if (!acts.length) return;
+      M.tacActions = [];
+      for (const a of acts) tacDo(a);
+      if (every('tacLog', 6)) log('reflex', `tac[${dec.phase}] 威胁 ${Math.round(st.threatValue)} vs 我 ${st.myValue}（比 ${st.ratio}）`
+        + `，动作为 ${acts.map(a => a.op).join('+')}${dec.notes.length ? '｜' + dec.notes.join('；') : ''}`);
+    }
+
     function siege(S) {
       const P = C.plan, now = sec();
       const armyUnits = S.mine.filter(isCombat).filter(o => o.id !== M.scoutId || M.scouted);
@@ -948,6 +1260,7 @@ function ra2Runtime() {
       production(S, av);
       if (every('intel', 1.5)) intelSample(S);
       if (every('army', 0.8)) army(S);
+      if (C.plan.tacticalMode && every('tactical', C.plan.tacticalInterval ?? 3)) tacticalTick(C.state());
       if (every('siege', 0.7)) siege(C.state());
       if (every('repair', 2)) repair(S);
       // Whoever is shooting at us gets shot back, buildings (defensive towers) included.
@@ -976,6 +1289,44 @@ function ra2Runtime() {
     };
     C.advise = (from, msg, level = 'info') => { log('advice', `[${level}] ${msg}`, from); return {ok: true}; };
 
+    // ---- 查打一体的对外接口（agent 用它，而不是只调阈值）----
+    // 一次调用拿到"看"和"打"两件事：读战场态、给可选动作、并可直接下发。
+    // 与 C.intel 的分工：intel 是公平视野的原始事实；tacRead 已经把事实压成"该做什么"。
+    C.tacRead = ({execute = false, maxOrders} = {}) => {
+      const S = C.state();
+      const st = tacRefresh(S);
+      const dec = TAC.decide(st, tacCfg(), M);
+      const limit = Math.max(1, maxOrders ?? C.plan.tacticalMaxOrders ?? 3);
+      const acts = dec.actions.slice(0, limit);
+      const issued = [];
+      if (execute) { M.tacActions = []; for (const a of acts) issued.push(tacDo(a)); }
+      return {
+        time: fmt(sec()), stance: C.plan.stance, mode: !!C.plan.tacticalMode,
+        phase: dec.phase, breach: dec.breach,
+        threat: {value: Math.round(st.threatValue), ratio: st.ratio, lead: st.lead ? {name: st.lead.name, x: st.lead.x, y: st.lead.y, distToBase: st.lead.distToBase, air: st.lead.air} : null,
+          byType: st.byType, airValue: st.airValue, heavyValue: st.heavyValue, trend: st.trend},
+        mine: {value: st.myValue, count: Object.keys(st.us).length, weak: st.weakIds.length, immobile: st.immobileIds.length, aa: st.aaIds.length},
+        line: {anchor: st.anchor, towerRange: st.towerRange, towers: st.towers.length},
+        planned: acts.map(a => ({op: a.op, units: a.ids.length, at: a.at || null, target: a.targetId || null, why: a.why, fallback: a.fallback || null})),
+        notes: dec.notes,
+        issued: execute ? issued : undefined,
+        // 上一轮动作的回读结果：这是"闭环"的证据，agent 每轮都该先看它
+        lastVerify: {actions: (M.tacActions || []).map(a => a.op), failed: M.tacVerified, totalFailed: M.tacFailed},
+        legend: {hold: '据守塔内不追出', focus: '集火指定目标', reposition: '转进到塔内某点', withdraw: '残血后置', screen: '防空车居中占位', reinforce: '逐辆补位'},
+      };
+    };
+    C.tacAct = ({ops}) => {
+      if (!ops || !ops.length) return {ok: false, error: '需要 ops'};
+      const st = tacRefresh(C.state());
+      const out = [];
+      M.tacActions = [];
+      for (const req of ops) {
+        const f = TAC.actions[req.op];
+        if (!f) { out.push({ok: false, error: '未知 op ' + req.op}); continue; }
+        out.push(tacDo(f(req.ids || [], req.at, req.targetId)));
+      }
+      return {ok: out.every(r => r.ok), results: out, phase: M.tacState ? M.tacState.leadTiles : null};
+    };
     C.intel = ({reader = 'commander', maxEvents = 40, detail = false} = {}) => {
       const S = C.state(), pd = g.getPlayerData(ME), now = sec();
       const base = baseCenter(S.buildings);
