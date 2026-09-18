@@ -55,42 +55,34 @@ python3 <skill>/scripts/evolve.py new-match --opponent ai-easy --map "岛屿之�
 
 任务书很长，不要整段抄进 prompt，让 agent 自己去读，免得抄错。实时 agent 要在开局**之前**派出，开局第一秒就在线；开局阶段由执行层自动处理，不用等它们读完文件。改过模板后，用 `evolve.py briefs --match <id>` 重新渲染。
 
-**模型路由（取决于本机是否注册了 `vercel` provider）**：本仓库的约定是把 `commander` 走 Vercel AI Gateway
-的 `typesafe-ai/jev`。派它**之前**先跑一次 `list_subagent_models`，按结果分两种走法：
+**模型路由**：四个角色都用项目默认模型。**不要把 `commander` 指到 `vercel` / `typesafe-ai/jev`** —— 这条
+试过，不可能成立。网关的原文回复是：
 
-- **看得到 `vercel`** → 显式传 `provider: vercel`、`model: typesafe-ai/jev`。其余角色
-  （`analyst` / `quartermaster` / `learner`）用项目默认模型，不要跟着改。
-- **看不到 `vercel`** → 按项目默认模型正常开局。这是"本机没配这个 provider"的既定行为，**不是静默回退**：
-  别人克隆这个公开仓库时并没有 `vercel`，skill 不该因此拒绝服务。
+```
+400 Model 'typesafe-ai/jev' is an evaluation model, not a language model.
+    Use the evaluation generation API instead.
+```
 
-  **但如果你这一局的本意就是要用 `jev`**（用户点名要用，或你正在验证这条链路），那**不要用默认模型开局**——
-  去用别的模型跑一局会把"jev 行不行"这个问题悄悄变成"别的模型行不行"。先告诉用户 `vercel` 未注册，
-  等配好再开。
+`jev`（TypeSafe AI）是**评估模型**，不是语言模型：它不生成文本、不调用工具，而指挥官的活全是工具调用
+（读任务书、读档案、通过 CDP 桥读战场）。把它写进 `subagent-model-selection.allowedModels` 只会让
+`list_subagent_models` 里多一个选了就报 400 的陷阱，所以它**不在**那份白名单里。
 
-  怎么算"注册"（**不需要动 GUI**）：provider 在 DSH 的 `settings.yaml` 里声明，两处都要有——
-  `llm-pi-ai.providers.vercel`（字段照抄已有的 `zai`/`gtm`：`apiKeyEnv`、`baseURL`、`api`、`models`），
-  以及把该模型加进 `subagent-model-selection.allowedModels` 白名单。**只看 `list_subagent_models`
-  的输出即可判定，它反映的就是这份白名单。**
+**`jev` 真正能干的活：判断器，不是大脑。** 对应 AI SDK 的 `experimental_evaluate`：给一个 state
+（字符串 / JSON 对象 / JSON 数组）加一组**带类型的问题**，拿回判断。问题只有三种类型——
+`choice`（在给定 criteria 里选一个）/ `score`（按给定档位打分）/ `boolean`（附 P(true) 估计）。
+落到这个项目上有两个用得上、且都**不需要它生成决策**的形态：
 
-**开赛前体检（指挥官走 `jev` 时必须做）**：`jev` 在 Gateway 目录里的元数据是 `type: evaluation`、
-`context_window: 0`、`max_tokens: 0`、不带 `tool-use` 标签，与本项目对指挥官的预期可能不匹配。
-所以在派出 commander 之后、点"开始游戏"之前，让它完成**至少一次工具调用**（例如 Read `plan_used.json`）
-并把结果回出来：
-- 体检通过 → 正常开局，本局指挥官的大脑就是 `jev`。
-- 体检失败（无法调用工具 / 上下文为 0 / 直接报错）→ **自动降级到 B 路**：指挥官改用项目默认模型（它照样
-  有全套工具），但**每一轮的战略判断改从 `jev` 的 HTTP 接口取**——把 `intel` 快照喂给它、拿回方案改动、
-  再由指挥官执行。这条路不需要 `jev` 支持工具调用，`scripts/score_with_jev.py` 已经有可用的调用壳。
-  降级要在 commander_log.md 顶部写明"本局走 B 路、原因是体检失败"，不要让复盘的人以为指挥官的大脑是 jev。
-- 两条路都不通（网关 403 / 密钥缺失）→ **不要开局**，把失败形态原样报给用户，不要用别的模型悄悄替跑。
+- **赛后**：用 `score`/`boolean` 给本局的决策打分、判定"某条调整是否印证了某条战术"。这是最直接的用法。
+- **赛中**（可选）**：由别的模型先把候选动作生成出来（例如"现在出击 / 继续守 / 补塔"），再把候选喂给
+  `jev` 用 `choice` 选一个。它只做挑选，不做生成——所以它当"判断器"需要另一侧提供候选。
 
-**现状（2026-09-19 记）**：B 路的调用壳已就绪，但"把判断接进指挥循环"还没实现——它要等网关能通
-（账号未挂支付方式时**所有**模型都返回 403，与 `jev` 本身无关）才能验证。
+调用壳：`scripts/score_with_jev.py`（走 Vercel AI Gateway，key 从项目根的 `.env` 读 `AI_GATEWAY_API_KEY`，
+脚本不打印密钥）。注意 `--list-models` 与 `--prompt` 走的是**两道不同的门**：前者成功只证明鉴权有效，
+实测出现过"列表能拉 376 个模型、调用却 403（账号未挂支付方式）"，别把能列模型当成网关照常可用。
 
-**别把"能列出模型"当成"网关通了"**：`--list-models` 成功只证明**鉴权有效**，推理是另一道门。
-实测同一把 key 下，`--list-models` 返回 376 个模型，而 `--prompt` 返回
-`403 customer_verification_required / AI Gateway requires a valid credit card on file`。
-信用卡必须挂在**持有这把 API key 的那个 team** 上；绑到个人账号、而 key 属于另一个 team 时，
-症状就是"列表能拉、调用全 403"。
+**若将来要给某个角色 pin 非默认模型**（不管是谁），开局前必须做一次体检：让它完成**至少一次真实工具调用**
+（例如 Read `plan_used.json`）并把结果回出来；通不过就**不要开局**、把失败形态原样报给用户，
+不要用别的模型悄悄替跑。指挥官拿不到工具 = 整局没有战略决策，开局只会白送一局。
 
 ### 5. 开局
 进入 单机模式 → 遭遇战 → 开始游戏。10 秒内确认 `window.__cmd.started === true`，并且日志里有展开 MCV 和排产电厂。没启动的话，退出这局，刷新页面，从第 3 步重来：开局后才装的陷阱抓不到对象。
