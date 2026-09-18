@@ -1,0 +1,133 @@
+{
+ "matchId": "match-013",
+ "runtimeVersion": "rt-5b15f06310",
+ "planVersion": "v011",
+ "result": "lost",
+ "durationSec": 481,
+ "me": "Player 1",
+ "side": "GA",
+ "enemies": [
+  "@@AI2@@"
+ ],
+ "starts": {
+  "Player 1": {
+   "x": 135,
+   "y": 80
+  },
+  "@@AI2@@": {
+   "x": 71,
+   "y": 118
+  }
+ },
+ "factions": {
+  "Player 1": "French",
+  "@@AI2@@": "Confederation"
+ },
+ "plan0": {
+  "stance": "defend",
+  "buildOrder": [
+   "power",
+   "refinery",
+   "barracks",
+   "factory",
+   "refinery",
+   "power",
+   "radar",
+   "refinery",
+   "power"
+  ],
+  "targetRefineries": 3,
+  "minersPerRefinery": 2,
+  "maxMiners": 12,
+  "maxFactories": 2,
+  "vehicleMix": {
+   "tank": 4
+  },
+  "infantryMix": {
+   "inf": 1
+  },
+  "infantryCap": 8,
+  "defenses": {
+   "baseDef": 3,
+   "aaDef": 2,
+   "strongDef": 1
+  },
+  "defenseDistance": 6,
+  "threatRadius": 14,
+  "leashRadius": 4,
+  "sortieMaxUnits": 4,
+  "minerEscort": 1,
+  "attackMinUnits": 10,
+  "retreatRatio": 0.14,
+  "defendRetreatRatio": 0.4,
+  "defendMinValue": 800,
+  "attackTarget": "auto",
+  "siegeAutoAttackUnits": 10,
+  "siegeQuietSeconds": 10,
+  "scout": true,
+  "repair": true
+ },
+ "planFinal": {
+  "stance": "defend",
+  "buildOrder": [
+   "power",
+   "refinery",
+   "barracks",
+   "factory",
+   "refinery",
+   "power",
+   "radar",
+   "refinery",
+   "power"
+  ],
+  "targetRefineries": 3,
+  "minersPerRefinery": 2,
+  "maxMiners": 12,
+  "maxFactories": 2,
+  "vehicleMix": {
+   "tank": 4
+  },
+  "infantryMix": {
+   "inf": 1
+  },
+  "infantryCap": 3,
+  "defenses": {
+   "baseDef": 3,
+   "aaDef": 1,
+   "strongDef": 1
+  },
+  "defenseDistance": 6,
+  "threatRadius": 14,
+  "leashRadius": 4,
+  "sortieMaxUnits": 4,
+  "minerEscort": 1,
+  "attackMinUnits": 10,
+  "retreatRatio": 0.14,
+  "defendRetreatRatio": 0.4,
+  "defendMinValue": 800,
+  "attackTarget": "auto",
+  "siegeAutoAttackUnits": 10,
+  "siegeQuietSeconds": 10,
+  "scout": true,
+  "repair": true
+ },
+ "logCount": 278,
+ "snapshotCount": 49,
+ "logKinds": {
+  "start": 2,
+  "build": 33,
+  "scout": 2,
+  "intel": 24,
+  "prod": 5,
+  "advice": 9,
+  "reflex": 41,
+  "warn": 20,
+  "alarm": 36,
+  "plan": 4,
+  "kill": 36,
+  "loss": 48,
+  "attack": 2,
+  "siege": 15,
+  "over": 1
+ }
+}

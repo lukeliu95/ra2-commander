@@ -1,0 +1,9 @@
+{
+  "match": "match-013",
+  "result": "lost",
+  "durationSec": 481,
+  "planVersion": "v011",
+  "opponent": "ai-easy",
+  "notes": "v011 首战即负：retreatRatio 0.14 未触发自动撤退，16 辆 MTNK 全损",
+  "recordedAt": "2026-09-18T16:46:10"
+}

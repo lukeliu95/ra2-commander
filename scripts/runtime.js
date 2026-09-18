@@ -379,13 +379,15 @@ function ra2Runtime() {
       if (Array.isArray(T)) return {x: T[0], y: T[1]};
       const known = [...M.enemyBuildings.values()];
       if (!known.length) return enemyStart();
-      // Order by how close each building is to actually ending the match, not by how annoying it is. match-012
-      // pinned the defeat condition down by observation: at 23:26 the enemy still held GAPILE + GAREFN×3 + GADEPT
-      // and had NOT lost; the instant the last GAPILE fell at 23:30 it was defeated. So the check counts the
-      // production set (barracks / war factory / airforce HQ / tech lab); refineries, repair depots and surviving
-      // defences count for nothing. Razing power plants and pillboxes first burned 30 seconds there (22:29-22:59)
-      // for no progress. Production now sits right behind the construction yard, the reactor stays last.
-      const pri = n => /NRCT|NUKE/.test(n) ? 6 : /CNST/.test(n) ? 0 : /WEAP|PILE|HAND|AIRC|RADR|TECH/.test(n) ? 1 : /POWR/.test(n) ? 2 : /PILL|LASR|TSLA|TESLA|SAM|FLAK|GCAN|PRISM/.test(n) ? 3 : /REFN/.test(n) ? 4 : 5;
+      // Order by how close each building is to actually ending the match, not by how annoying it is. Verified
+      // across two matches now, from both sides:
+      //   match-012: GAWEAP fell 23:06, GAAIRC 23:20, GATECH 23:24 — no defeat; GAPILE fell 23:30 -> 23:31 over.
+      //   match-013: our CY fell 6:16, GAWEAP 7:58 — no defeat; GAPILE+GAAIRC fell together at 8:00 -> 8:01 lost.
+      // So the defeat check counts exactly four unit-producing types: construction yard, barracks, war factory,
+      // and radar/airforce HQ. **The tech lab does NOT count** — including TECH here was wrong and only wastes
+      // demolition time on a building whose destruction changes nothing. Refineries, depots, power and surviving
+      // defences do not count either. The reactor stays last.
+      const pri = n => /NRCT|NUKE/.test(n) ? 6 : /CNST/.test(n) ? 0 : /WEAP|PILE|HAND|AIRC|RADR/.test(n) ? 1 : /POWR/.test(n) ? 2 : /PILL|LASR|TSLA|TESLA|SAM|FLAK|GCAN|PRISM/.test(n) ? 3 : /REFN/.test(n) ? 4 : 5;
       known.sort((a, b) => pri(a.name) - pri(b.name) || d2(a, base) - d2(b, base));
       return {x: known[0].x, y: known[0].y};
     }
@@ -530,7 +532,7 @@ function ra2Runtime() {
         if (!M.attack) {
           if (units.length >= P.attackMinUnits) {
             const tgt = pickTarget(base);
-            M.attack = {value: myValue, target: tgt, ids: new Set(units.map(u => u.id)), t: now};
+            M.attack = {value: myValue, target: tgt, ids: new Set(units.map(u => u.id)), launchIds: new Set(units.map(u => u.id)), t: now};
             log('attack', `发起进攻：${units.length} 个单位（价值 ${myValue}）→ ${tgt.x},${tgt.y}`);
           } else {
             orderThrottled(units.filter(o => d2(xy(o), rally) > 36), ORD.AttackMove, rally.x, rally.y, 'rally', 6);
@@ -545,23 +547,37 @@ function ra2Runtime() {
         // the auto-retreat floor drops sharply (0.35 -> 0.14). The floor is not removed: defensive towers still
         // cost real units, and losing the whole group is slower than finishing with the ones we have.
         const enemyField = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester && dist(xy(o), enemyStart()) > 15);
-        // NOT `enemyField.length === 0`. A strict emptiness test made this fire almost never — in match-012 one
-        // 600-credit JUMPJET was enough to switch finishing mode off for the entire 12:30-13:33 window, so the
-        // aggressive retreat floor never actually applied. What matters is that the enemy has no force capable
-        // of punishing a commitment, not that the map is literally free of hostile units (that is the same
-        // "one stray unit disables the whole reflex" trap the siege judge fell into in match-009).
+        // NOT a strict emptiness test: in match-012 one 600-credit JUMPJET switched finishing mode off for the
+        // whole 12:30-13:33 window. But a field-only threshold is equally wrong in the other direction —
+        // match-013 had enemy field = 0 while four CAPILL heavy pillboxes (650cr / 600HP each) sat on the
+        // approach. Finishing mode switched on, newly built tanks were auto-enrolled into the push, and they
+        // walked 70 tiles one at a time into those guns: 22 MTNK lost and the match with them. "No field army"
+        // does not mean "nothing left that can kill you", so static defences gate it too.
         const enemyFieldValue = enemyField.reduce((s, o) => s + cost(o), 0);
-        const finishing = enemyFieldValue < 1500;
-        if (finishing !== M.finishing) { M.finishing = finishing; if (finishing) log('attack', `敌方野战力量仅 ${enemyFieldValue}：进入清场模式（全军加入攻势，撤退下限降到 14%）`); }
-        for (const u of units) if (!A.ids.has(u.id) && (finishing || d2(xy(u), rally) < 100)) A.ids.add(u.id);
+        const enemyDefCount = S.hostile.filter(o => o.isBuilding() && o.rules.isBaseDefense).length;
+        const finishing = enemyFieldValue < 1500 && enemyDefCount === 0;
+        if (finishing !== M.finishing) { M.finishing = finishing; if (finishing) log('attack', `敌方野战力量仅 ${enemyFieldValue} 且已无防御建筑：进入清场模式（撤退下限降到 14%）`); }
+        // Newly produced units stage at the rally like everything else. match-013 showed that enrolling every unit
+        // unconditionally — which is what the `finishing ||` here used to do — turns the intended "reinforcement
+        // stream" into a trickle of single tanks feeding the enemy's defences one at a time.
+        for (const u of units) if (!A.ids.has(u.id) && d2(xy(u), rally) < 100) A.ids.add(u.id);
         orderThrottled(units.filter(u => !A.ids.has(u.id)), ORD.AttackMove, rally.x, rally.y, 'rally', 6);
         const gv = units.filter(u => A.ids.has(u.id)).reduce((s, o) => s + cost(o), 0);
+        // The retreat ratio must be measured against the force actually committed, not against the live group.
+        // `A.ids` grows as reinforcements arrive, so the numerator silently fills with replacements while the
+        // denominator stays pinned at the launch value — the two sides stop describing the same thing. match-013
+        // is the proof: the original 15 units (12 MTNK + 3 E1) were 100% dead by 5:00, yet the 5:06 reading was
+        // 2610 (27%, nearly twice the 14% floor) purely because that 2610 was three brand-new MTNK. The attack
+        // never auto-retreated and the ground had to be given up by hand at 5:20. Measured against the launch
+        // group, even a 0.35 floor would have tripped at 4:54 (T-039). This is why the same fixed ratio looked
+        // too eager in match-012 and never fired in match-013: it was two faces of one inconsistent metric.
+        const launchAlive = units.filter(u => A.launchIds.has(u.id)).reduce((s, o) => s + cost(o), 0);
         // Absolute floor, not a multiplier of the base. v011 already sets retreatRatio to 0.14, so a 0.4
         // multiplier would double-apply it down to 0.056 — effectively never retreating, which risks losing the
         // entire group and is slower than finishing with the units we have.
         const retreatFloor = finishing ? Math.min(P.retreatRatio, 0.14) : P.retreatRatio;
-        if (gv < A.value * retreatFloor) {
-          log('reflex', `进攻部队只剩 ${Math.round(gv / A.value * 100)}%（下限 ${Math.round(retreatFloor * 100)}%）：自动撤退并转为防守`);
+        if (launchAlive < A.value * retreatFloor) {
+          log('reflex', `进攻编队只剩 ${Math.round(launchAlive / A.value * 100)}%（下限 ${Math.round(retreatFloor * 100)}%）：自动撤退并转为防守`);
           M.attack = null; C.plan.stance = 'defend';
           orderThrottled(units, ORD.Move, rally.x, rally.y, 'retreat', 1);
           return;
@@ -612,7 +628,7 @@ function ra2Runtime() {
     const isNuke = b => !!(b.rules.nuclear || /NRCT|NUKE/.test(b.name));
     const siegeRank = b => isNuke(b) ? 6
       : b.rules.constructionYard ? 0
-      : /WEAP|PILE|HAND|AIRC|RADR|TECH/.test(b.name) ? 1
+      : /WEAP|PILE|HAND|AIRC|RADR/.test(b.name) ? 1
       : b.rules.power > 0 ? 2
       : b.rules.isBaseDefense ? 3
       : b.rules.refinery ? 4
@@ -730,7 +746,7 @@ function ra2Runtime() {
     // any visible hostile within weapon range of it is a candidate and the nearest is attacked. The responding
     // squad is limited to our units already within 14 tiles of that attacker, so this can never become a long
     // charge out of tower cover — it only ever makes units that are already in the fight shoot back.
-    const RETALIATE_R = 12, RETALIATE_SQUAD_R = 14;
+    const RETALIATE_R = 12, RETALIATE_SQUAD_R = 14, RETALIATE_MAX_SIEGING = 3;
     function retaliate(S) {
       const now = sec();
       const victims = [];
@@ -751,10 +767,17 @@ function ra2Runtime() {
         if (!near.length) continue;
         const tgt = near.reduce((a, e) => (d2(xy(e), vp) < d2(xy(a), vp) ? e : a));
         const key = 'retaliate:' + tgt.id;
-        const squad = myUnits
+        let squad = myUnits
           .filter(u => d2(xy(u), xy(tgt)) < RETALIATE_SQUAD_R ** 2)
           .filter(u => { const lo = M.retaliating.get(u.id); return !lo || lo.k !== key || now - lo.t > 4; });
         if (!squad.length) continue;
+        // While a siege is running, answer with a token force only. match-013 pulled 17 unit-instances off the
+        // construction yard across seven occasions — once seven units to answer a single CAPOWR — and 54% of
+        // siege time went to buildings outside the defeat set, none of it progress toward the win. Defending our
+        // own base has no such cap: nothing is being starved there, so everyone in range should pitch in.
+        if (M.attack && squad.length > RETALIATE_MAX_SIEGING) {
+          squad = [...squad].sort((a, b) => d2(xy(a), xy(tgt)) - d2(xy(b), xy(tgt))).slice(0, RETALIATE_MAX_SIEGING);
+        }
         my.orderUnits(squad.map(u => u.id), ORD.Attack, tgt.id);
         for (const u of squad) M.retaliating.set(u.id, {k: key, t: now});
         if (every('retaliateLog', 8)) log('reflex', `反击：${v.name} 正在挨打，就近 ${squad.length} 个单位攻击 ${tgt.name}（${tgt.isBuilding() ? '建筑' : '部队'}）@${xy(tgt).x},${xy(tgt).y}`);

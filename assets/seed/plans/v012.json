@@ -1,0 +1,48 @@
+{
+  "version": "v012",
+  "parent": "v011",
+  "createdAt": "2026-09-18T16:49:53",
+  "reason": "复盘 match-013（v011 首战负，8:01，v011 两处改动里的第一处被判定为回归）。(1) retreatRatio 0.14 → 0.35（回退到 v010 值，T-037 修订）：本局 4:12 以 15 单位/9540 转攻，撤退下限=9540×min(0.14,0.14)=1336，而 gv 全程最低只到 2610（5:06，27.4%）——日志里 0 条『进攻部队只剩 X%』，自动撤退一次都没触发。逐条重算死亡序列：4:44 gv=7290 → 4:45 6540 → 4:47 5790 → 4:50 4290 → 4:53 3540 → 4:54 2040，**0.35 的下限 3339 在 4:54 就被击穿**（最晚不超过 5:06 的实测 2610），比指挥官 5:20 手动止损早 14–26 秒，可保住 4:56/4:59/5:21/5:24 这 4 辆 MTNK（2–4 辆口径见 tactics T-039）。更根本的是判据被稀释：5:00 时发起时的 15 个单位（12 MTNK+3 E1）已经 100% 阵亡，而 5:06 的 gv 仍读 27%（2610 = 3 辆新 MTNK+2 E1，全部是 finishing 自动加入的替补）——分母被增援抬高，比例系统性低估损耗。match-012 嫌 0.35 太早、本局嫌 0.14 太晚，说明固定自身比例本身有缺陷（T-037 修订 + T-039），但 0.35 至少能在『原始编队被打光』前触发，0.14 在本局的实测触发点是『永远不会』，故先回退。(2) siegeAutoAttackUnits 10 → 14（回退到 v010 值，T-028）：本局的教训是『转攻门槛降低了，但 10 单位打不穿一个有完整经济的基地』——4:12 那次 15 单位/9540 是 v011 全程最大的一支部队，仍对敌方 3 类生产建筑（CACNST/CAHAND/CAWEAP）零击破（68 秒里只拆掉 CARADR 与 CAPOWR 两座与判负无关的建筑，CARADR 5:02 还被重建），反而被 CAPILL 群把 22 辆 MTNK 磨光。既然 15 单位都被证明不够，就没有任何证据支持把自动转攻门槛从 14 降到 10——门槛越低，越可能在兵力不足时自动把部队送出去。本次明确不改：defenses.baseDef 保持 3（GAPILL 的 Vulcan2 对 LTNK 每发 12.5=零效，加碉堡对古巴无用，真正的静态火力是 strongDef 的 ATESLA）；strongDef 保持 1（本局 ATESLA 全程未损，加码证据仍不足）；infantryCap 保持 8（降 cap 对古巴有效但只应由指挥官在 0:53–1:13 确认阵营后执行，写死进默认值会对苏军步兵首波有害）；minerEscort 保持 1（本局 4 次矿车撤退后 2–5 秒即被杀，无法区分护卫是否到位，见 runtime_issues #3）。执行层问题（finishing 自动添油、清场判据不看静态防御、反击反射把大部队从攻城目标拽走、撤退判据分母被增援稀释）都不是 plan 字段能表达的，见 matches/match-013/runtime_issues.md。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 1
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 1,
+    "defendRetreatRatio": 0.4
+  }
+}

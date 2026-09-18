@@ -1,0 +1,48 @@
+{
+  "version": "v011",
+  "parent": "v010",
+  "createdAt": "2026-09-18T16:26:46",
+  "reason": "复盘 match-012（v010 首战，胜 23:31——本系列最长的一局，但 13:12 拆掉建造厂后拖了 10 分 19 秒）。本局赢了，按'最多 2 个字段'只改证据最硬的两处，都直接对应'快速摧毁所有建筑'这个终极目标。(1) retreatRatio 0.35→0.14（T-037 新增，支持 1）：把 13:12→23:31 的 619 秒按'我方单位最后一次挨打→下一次挨打'切成四段实际交战（7:39–8:00 的 21 秒、12:44–13:35 的 111 秒、19:15–19:57 的 42 秒、22:02–22:51 的 49 秒），四段合计只有 223 秒，剩下 396 秒（64%）全是行军和干等，其中两次'撤退→下次接敌'的空档 5:25（13:33→18:58）和 2:05（19:49→21:54）合计 7 分 30 秒 = 那 10 分钟的 73%。两次撤退触发时敌方 field 均为 0、家里只剩 1 单位/180 和 2 单位/1200，根本不可能反推我方；而 13:37–18:47 这段'萎缩期'我方交换比是 4.71:1（只损 1 辆 HARV），证明'掉到 35% ≠ 会输'。第四次转攻（21:42，5 辆 HTNK 就走、增援流不停加入）22:26 把敌方 field 打到 0、23:31 清光，全程只损 1 HTNK。注意：新 runtime 的 finishing 模式本意就是 0.35×0.4=0.14，但它要求 field 严格为 0，本局 12:30–13:33 一次都没激活（对手 51 架 JUMPJET/22 辆 FV 的单机骚扰，1 架到场就把判据关掉，日志里从头到尾没出现'进入清场模式'），所以 plan 层显式写 0.14 更可靠。retreatRatio 在 runtime.js 里只有 army() 进攻分支一处使用（第 553 行），不影响防守参数。(2) siegeAutoAttackUnits 14→10（T-024/T-028，match-009+match-012 两次同因卡住）：本局 10:18–12:29 敌方 field 连续 2 分钟为 0、我方战斗单位 9→14 个（10:03 九个、10:43 十一个、12:23 十四个），11:23 时 11 个战斗单位/8300 对敌方家里 5 单位/3600（2.3 倍，满足 T-005 的 2 倍硬条件），但因为门槛 14 而自动转攻一次都没触发，11:26 analyst 发出'建议手动转攻'、指挥官 12:29 手动 apply。match-009 的同一条教训（25 单位对龟缩对手、反射一次没触发、靠手动转攻才拿下）在本局重演。降至 10 后，10:43（11 个战斗单位、field 已为空 ≥10 秒、有载具、价值优势达标）即可自动触发，比手动早约 1 分 46 秒；且另有三道闸门（siegeQuietSeconds 10 秒、hasVehicle、T-005 的 2 倍优势）同时生效，风险可控。本次明确不改：defenses.aaDef 保持 2（T-027 第 3 局验证：盟军首波 2:58 即 6 架 JUMPJET，NAFLAK#2 落地早于首波是首波 30 秒全歼的直接原因）；targetRefineries 保持 3（v010 改动验证：本局零次'第 4 矿厂在错误时机排产触发资金饥饿'）；infantryCap 保持 8（攻城期 E2 喂碉堡是转攻时机问题，T-034 已有分阶段处理）；strongDef 保持 1（本局 MGTK/SREF 7:38 就出现但一个碾压波在 9:51–9:57 被现有塔线零损全歼，加码证据仍不足）。矿车 AI 取消 bug 与反击反射已由主会话合入 rt-e2f8253ab6，属执行层，不进 plan（见 runtime_issues #1/#2）；清场模式判据过严、siege 全组改攻副作用见 runtime_issues #3/#4。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.14,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 10,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 1
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 1,
+    "defendRetreatRatio": 0.4
+  }
+}
