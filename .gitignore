@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# 密钥：绝不提交（origin 是公开仓库）
+.env
+.env.*
+!.env.example
