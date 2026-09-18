@@ -1102,13 +1102,54 @@ function ra2Runtime() {
           const myValue = armyUnits.reduce((s, o) => s + cost(o), 0);
           const enemyValue = enemyUnits.reduce((s, o) => s + cost(o), 0);
           const advantage = enemyValue === 0 || myValue >= enemyValue * 2;
-          if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits && hasVehicle && advantage) {
-            C.apply({stance: 'attack', attackMinUnits: Math.min(P.attackMinUnits, armyUnits.length)}, `攻城规则：${P.siegeQuietSeconds} 秒敌方无野战部队，我方 ${armyUnits.length} 个单位（含载具、价值 ${myValue}）对敌方 ${enemyValue}（T-005 优势达标），转入进攻拆建筑`, 'main');
+          // --- Target-quality gates (T-051) ----------------------------------------------------------------
+          // Everything above judges whether *we* are strong enough. None of it judges whether the thing we are
+          // about to walk into can be taken, and in this engine that gap is the most expensive one we have.
+          // `field` is empty whenever the enemy has turtled at home, so a value ratio measured against a visible
+          // *field* army says almost nothing about the base standing behind it — this platform has no fog of war,
+          // so those home units are the whole army, not a hidden one.
+          // match-017 is the clean sample: the reflex auto-attacked twice on this reading (2.39x and 2.08x) into a
+          // fully intact base with pillboxes up since 1:09, and lost 16210 for 13110 killed (0.49:1 then 0.95:1),
+          // while the very same reflex *correctly* held back twice at lower ratios (1.69x, 1.93x). Ratio and
+          // "can we take the base" are close to uncorrelated. match-011 and match-012 both auto-attacked
+          // successfully, and in both the enemy base had already been broken open.
+          // So: gate on the target. Any one gate failing means no auto-attack. The manual path is deliberately
+          // untouched — a commander calling apply({stance:'attack'}) is making a judgement this reflex cannot make,
+          // and match-017's commander was right to hold fire by hand.
+          const isArtyUnit = o => !!(o.rules.isArtillery || /^(V3|ARTY|DRED)$/.test(o.name));
+          // (1) Never attack a base whose defences have not been seen. That is match-013's lesson: 15 units walked
+          // into four unscouted Cuban pillboxes. Note what this gate is NOT: it is not "block if defences exist".
+          // The replay of four historical attacks showed that reading would have blocked match-015's attack, which
+          // won the match — 5 pillboxes were known there and we attacked anyway, successfully. Known defences are
+          // context for the log, not a veto.
+          const baseScouted = M.enemyBuildings.size > 0;
+          const knownEnemyDefences = [...M.enemyBuildings.values()].filter(b => {
+            try { return !!game.rules.getObject(b.name, 2).isBaseDefense; } catch (e) { return false; }
+          }).length;
+          // (2) Is its home force still growing? "No field army" is not "no build-up"; T-043.
+          const hist = M.armyHist, lastH = hist[hist.length - 1];
+          const prevH = hist.filter(x => now - x.t >= 6 && now - x.t <= 14).pop() || lastH;
+          const homeNow = lastH ? lastH.value - lastH.fv : 0;
+          const homeThen = prevH ? prevH.value - prevH.fv : homeNow;
+          const homeRising = homeNow > homeThen;
+          // (3) Do we own anything that answers a range advantage? This is the gate the replay singled out as the
+          // real discriminator. T-049: when the enemy fields a stationary unit that outranges everything we have,
+          // headcount stops mattering — match-017 sent 31 units to their deaths against 3 tanks that outranged
+          // every one of them, while match-011/012/015 all attacked successfully with an anti-armour tower up.
+          // Replaying these four cases, this is the only gate that separates all of them correctly.
+          const hasRangeAnswer = armyUnits.some(isArtyUnit) || S.mine.some(o => o.isBuilding() && o.name === R('strongDef'));
+          const blockedBy = !baseScouted ? `敌方基地从未侦察过（无法判断静态防御，见 T-013/match-013）`
+            : !hasRangeAnswer ? `我方没有任何射程反制手段（T-049：敌方若存在射程大于我方的站桩单位，兵力数不起作用）`
+            : homeRising ? `敌方在家兵力仍在增长（${homeThen}→${homeNow}，T-043）` : null;
+          if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits && hasVehicle && advantage && !blockedBy) {
+            C.apply({stance: 'attack', attackMinUnits: Math.min(P.attackMinUnits, armyUnits.length)}, `攻城规则：${P.siegeQuietSeconds} 秒敌方无野战部队，我方 ${armyUnits.length} 个单位（含载具、价值 ${myValue}）对敌方 ${enemyValue}（T-005 优势达标 + 目标成色三闸门通过），转入进攻拆建筑`, 'main');
             M.noArmySince = null;
           } else if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits && hasVehicle && every('siegeBlocked', 30)) {
-            // Every other gate is met and only the ratio is holding us back — say so. Without this the only way to
-            // notice a stuck reflex is `status.attack` staying null, which is what match-009's analyst had to do.
-            log('warn', `自动转攻被 T-005 优势门槛挡住：我方价值 ${myValue} 对敌方 ${enemyValue}（需 2 倍），继续防守`);
+            // Say which gate is holding us back. Without this the only way to notice a stuck reflex is
+            // `status.attack` staying null, which is what match-009's analyst had to reverse-engineer.
+            log('warn', blockedBy
+              ? `自动转攻被"目标成色"闸门挡住：${blockedBy}（我方价值 ${myValue} 对敌方 ${enemyValue}，比例已达标；这条只约束自动路径，指挥官仍可手动转攻）`
+              : `自动转攻被 T-005 优势门槛挡住：我方价值 ${myValue} 对敌方 ${enemyValue}（需 2 倍），继续防守`);
           }
         } else M.noArmySince = null;
         return;

@@ -1,0 +1,9 @@
+{
+  "name": "ra2-commander-tools",
+  "private": true,
+  "description": "Node-side tooling for ra2-commander. Only the evaluation bridge needs packages; the runtime itself stays dependency-free and is inlined into the game page by evolve.py. Deliberately NOT type=module: the existing test files use CommonJS require(), and the scripts that do need ESM are .mjs, so they are unambiguous without it.",
+  "dependencies": {
+    "@ai-sdk/gateway": "latest",
+    "ai": "latest"
+  }
+}

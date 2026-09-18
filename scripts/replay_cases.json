@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "A", "match": "match-017", "t": 139, "outcome": "auto-attacked, 0.49:1, lost 5340", "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] },
+    { "id": "B", "match": "match-017", "t": 261, "outcome": "auto-attacked, 0.95:1, lost ~9000", "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] },
+    { "id": "C", "match": "match-017", "t": 227, "outcome": "correctly refused (1.69x)", "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] },
+    { "id": "D", "match": "match-015", "t": 355, "outcome": "auto-attacked and WON the match 6:59", "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] }
+  ]
+}

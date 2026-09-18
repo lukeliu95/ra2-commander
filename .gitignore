@@ -6,3 +6,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# Node tooling for the evaluation bridge; never commit installed packages
+node_modules/

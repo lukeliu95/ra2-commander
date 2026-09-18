@@ -1,0 +1,15 @@
+{
+  "rangeTable": {
+    "MGTK": 7, "SREF": 7, "APOC": 5.75, "HTNK": 5.75, "LTNK": 5.75, "MTNK": 5.75,
+    "CAPILL": 5.5, "GAPILL": 5.5, "NALASR": 5.5, "MSAM": 6, "NASAM": 6,
+    "CTESLA": 8, "TESLA": 8, "ATESLA": 8,
+    "BGGY": 6, "FV": 6, "HTK": 6, "PLA": 4, "E1": 4, "E2": 4,
+    "JUMPJET": 4, "FLAKT": 4, "HOWI": 6, "V3": 12, "ARTY": 10, "DRED": 12
+  },
+  "cases": [
+    { "id": "A framed", "match": "match-017", "t": 139, "outcome": "auto-attacked, 0.49:1, lost 5340", "framed": true, "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] },
+    { "id": "B framed", "match": "match-017", "t": 261, "outcome": "auto-attacked, 0.95:1, lost ~9000", "framed": true, "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] },
+    { "id": "C framed", "match": "match-017", "t": 227, "outcome": "correctly refused (1.69x)", "framed": true, "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] },
+    { "id": "D framed", "match": "match-015", "t": 355, "outcome": "auto-attacked and WON the match 6:59", "framed": true, "defenceNames": ["GAPILL", "MSAM", "CTESLA", "NASAM", "ATESLA", "NALASR", "TESLA"] }
+  ]
+}
