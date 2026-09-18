@@ -86,6 +86,12 @@ python3 <skill>/scripts/evolve.py new-match --opponent ai-easy --map "岛屿之�
 **现状（2026-09-19 记）**：B 路的调用壳已就绪，但"把判断接进指挥循环"还没实现——它要等网关能通
 （账号未挂支付方式时**所有**模型都返回 403，与 `jev` 本身无关）才能验证。
 
+**别把"能列出模型"当成"网关通了"**：`--list-models` 成功只证明**鉴权有效**，推理是另一道门。
+实测同一把 key 下，`--list-models` 返回 376 个模型，而 `--prompt` 返回
+`403 customer_verification_required / AI Gateway requires a valid credit card on file`。
+信用卡必须挂在**持有这把 API key 的那个 team** 上；绑到个人账号、而 key 属于另一个 team 时，
+症状就是"列表能拉、调用全 403"。
+
 ### 5. 开局
 进入 单机模式 → 遭遇战 → 开始游戏。10 秒内确认 `window.__cmd.started === true`，并且日志里有展开 MCV 和排产电厂。没启动的话，退出这局，刷新页面，从第 3 步重来：开局后才装的陷阱抓不到对象。
 
