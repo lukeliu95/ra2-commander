@@ -64,8 +64,13 @@ python3 <skill>/scripts/evolve.py new-match --opponent ai-easy --map "岛屿之�
   别人克隆这个公开仓库时并没有 `vercel`，skill 不该因此拒绝服务。
 
   **但如果你这一局的本意就是要用 `jev`**（用户点名要用，或你正在验证这条链路），那**不要用默认模型开局**——
-  去用别的模型跑一局会把"jev 行不行"这个问题悄悄变成"别的模型行不行"。先告诉用户 `vercel` 未注册
-  （GUI Settings 里 provider id 用 `vercel`），等注册好再开。
+  去用别的模型跑一局会把"jev 行不行"这个问题悄悄变成"别的模型行不行"。先告诉用户 `vercel` 未注册，
+  等配好再开。
+
+  怎么算"注册"（**不需要动 GUI**）：provider 在 DSH 的 `settings.yaml` 里声明，两处都要有——
+  `llm-pi-ai.providers.vercel`（字段照抄已有的 `zai`/`gtm`：`apiKeyEnv`、`baseURL`、`api`、`models`），
+  以及把该模型加进 `subagent-model-selection.allowedModels` 白名单。**只看 `list_subagent_models`
+  的输出即可判定，它反映的就是这份白名单。**
 
 **开赛前体检（指挥官走 `jev` 时必须做）**：`jev` 在 Gateway 目录里的元数据是 `type: evaluation`、
 `context_window: 0`、`max_tokens: 0`、不带 `tool-use` 标签，与本项目对指挥官的预期可能不匹配。
