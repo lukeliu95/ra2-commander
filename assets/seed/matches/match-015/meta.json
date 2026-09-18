@@ -1,0 +1,133 @@
+{
+  "matchId": "match-015",
+  "runtimeVersion": "rt-5e310d3147",
+  "planVersion": "v013",
+  "result": "won",
+  "durationSec": 420,
+  "me": "Player 1",
+  "side": "NA",
+  "enemies": [
+    "@@AI2@@"
+  ],
+  "starts": {
+    "Player 1": {
+      "x": 135,
+      "y": 80
+    },
+    "@@AI2@@": {
+      "x": 71,
+      "y": 118
+    }
+  },
+  "factions": {
+    "Player 1": "Arabs",
+    "@@AI2@@": "French"
+  },
+  "plan0": {
+    "stance": "defend",
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 2
+    },
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "leashRadius": 4,
+    "sortieMaxUnits": 4,
+    "minerEscort": 0,
+    "attackMinUnits": 10,
+    "retreatRatio": 0.35,
+    "defendRetreatRatio": 0.4,
+    "defendMinValue": 800,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "scout": true,
+    "repair": true
+  },
+  "planFinal": {
+    "stance": "attack",
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 2
+    },
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "leashRadius": 4,
+    "sortieMaxUnits": 4,
+    "minerEscort": 0,
+    "attackMinUnits": 10,
+    "retreatRatio": 0.35,
+    "defendRetreatRatio": 0.4,
+    "defendMinValue": 800,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "scout": true,
+    "repair": true
+  },
+  "logCount": 224,
+  "snapshotCount": 43,
+  "logKinds": {
+    "start": 2,
+    "build": 39,
+    "scout": 2,
+    "intel": 24,
+    "reflex": 32,
+    "prod": 3,
+    "warn": 16,
+    "alarm": 21,
+    "advice": 12,
+    "kill": 42,
+    "loss": 19,
+    "plan": 1,
+    "attack": 2,
+    "siege": 8,
+    "over": 1
+  }
+}

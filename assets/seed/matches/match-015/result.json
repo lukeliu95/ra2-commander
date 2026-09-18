@@ -1,0 +1,9 @@
+{
+  "match": "match-015",
+  "result": "won",
+  "durationSec": 420,
+  "planVersion": "v013",
+  "opponent": "ai-easy",
+  "notes": "v013 首战：预置 aaDef2+strongDef2 塔线零损吃掉对手两段攻势（含6架JUMPJET），5:55 自动转攻反射触发，6:59 判胜",
+  "recordedAt": "2026-09-18T21:40:18"
+}

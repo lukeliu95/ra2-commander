@@ -11,10 +11,16 @@
 - `{{SKILL_DIR}}/references/plan-schema.md`：intel 字段和事件类型。
 
 ## 工具边界
-- 只用 `mcp__Claude_Browser__javascript_tool`（action `javascript_exec`，tabId `{{TAB_ID}}`）读页面；读写文件用 Read / Write / Edit。
+- 页面用 CDP 桥只读（本环境没有 `mcp__Claude_Browser__javascript_tool`，桥是等价替代）。把 JS 片段写进 `/tmp/ra2-cmd-analyst.js`，然后执行：
+  ```bash
+  export PATH="/opt/homebrew/bin:$PATH"
+  node {{BRIDGE_DIR}}/cdp.js evalfile /tmp/ra2-cmd-analyst.js --target gonghui
+  ```
+  片段里可以用 `await`，但**必须以 `return <值>` 结尾**：桥会把片段包进 async IIFE，并把返回值原样打印到 stdout。
+  连不上（打印 `cannot reach CDP` 或 `ok:false`）先重试一次；再不行立刻停止并在最终回复里说明。
+- 读写文件用 Read / Write / Edit。
 - 不要点击、按键、截图、导航、刷新；不要调用 `C.apply`（你没有权限，调用会被拒绝）。
 - 比赛进行中不要读 `C.rec` 或 `C.dump('snapshots')`：那是全视野数据，只能赛后用。
-- 浏览器工具不可用时，立刻停止并在最终回复里说明。
 
 ## 循环
 先每 5 秒检查一次 `window.__cmd && window.__cmd.started`，最多等 4 分钟。之后每轮一次调用：
@@ -37,6 +43,12 @@ JSON.stringify(window.__cmd.intel({reader: 'analyst', maxEvents: 60, detail: tru
 - `warn`：出现克制我方当前兵种的敌方单位（空军、大量坦克等）、敌方建出高级科技建筑、敌方防御塔集中在我方预定进攻路线上，或者对手行为明显偏离档案（比如到了档案里的主攻时间却没出门）。
 - `info`：侦察到敌方基地布局，发现敌方经济薄弱点（落单矿车、偏远矿厂位置）。
 同一件事 60 秒内不要重复发。
+
+**发"某个反射没触发"这类指控前必须交叉验证。** `C.intel()` 的 `status` 只是你调用那一刻的快照，而执行层每 250 毫秒 tick 一次，`[plan/main]` / `[attack]` 这类决策完全可能发生在你上次读取之后。所以：
+
+1. 判断"转攻反射有没有触发""撤退有没有生效"，要看 `C.log` 里最近的 `[plan/main]` / `[attack]` / `[siege]` / `[reflex]` 事件，**不要只看 `status.stance` 的字面量**；
+2. 指控要连续两次采样（间隔 ≥ 15 秒）都成立才发；
+3. 万一发错了，下一轮用同级别的东西明确更正（match-015 的经验：分析员 5:50 的采样滞后约 6 秒，据此发了一条"自动转攻没触发"的 urgent，指挥官按日志忽略了它，分析员 6:18 自我更正——代价为零，但那是运气好）。
 
 ## 记录
 每 1–2 轮更新 `{{MATCH_DIR}}/analyst_log.md`，保证中途可读：

@@ -24,6 +24,9 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 RUNTIME = SKILL_DIR / "scripts" / "runtime.js"
 SEED = SKILL_DIR / "assets" / "seed"
 DATA = Path(os.environ.get("RA2_DATA", Path.home() / ".claude" / "ra2-commander"))
+# CDP bridge the live agents use to read/write the game page. It replaces
+# mcp__Claude_Browser__javascript_tool in environments that lack that MCP tool.
+BRIDGE_DIR = Path(os.environ.get("RA2_BRIDGE_DIR", Path.home() / "ds" / "_ra2-bridge"))
 
 
 def runtime_version() -> str:
@@ -135,7 +138,7 @@ def cmd_new_match(a):
 
 def render_briefs(mdir: Path, match_id: str, opponent: str, roles: list, tab: str) -> dict:
     values = {"TAB_ID": tab, "MATCH_ID": match_id, "MATCH_DIR": str(mdir), "DATA_DIR": str(DATA), "SKILL_DIR": str(SKILL_DIR),
-              "OPPONENT": opponent, "ROLES": ",".join(roles)}
+              "BRIDGE_DIR": str(BRIDGE_DIR), "OPPONENT": opponent, "ROLES": ",".join(roles)}
     out = {}
     for role in [*roles, "learner"]:
         tpl = SKILL_DIR / "agents" / f"{role}.md"

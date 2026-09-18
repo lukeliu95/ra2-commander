@@ -252,7 +252,16 @@ function ra2Runtime() {
           if (!next && powerLeft < 150 && av.has(R('power'))) next = R('power');
           if (!next) {
             M.sqIdleSince ??= sec();
-            if (sec() - M.sqIdleSince > 45 && every('sqIdle', 60)) log('warn', `建筑队列已空闲 ${Math.round(sec() - M.sqIdleSince)} 秒：buildOrder 已完成且没有兜底项，需要指挥官追加`);
+            // Only ask for a build order when one is affordable and we are not mid-offensive. A buildOrder item
+            // ignores credits and occupies the single structure queue (T-013), so a prompt sent during a 0-credit
+            // siege invites a 2000-credit refinery that then stalls the queue for the rest of the match.
+            // match-015: the warn fired at 5:43 (12s before the auto-attack) and 6:43 (mid-demolition) with credits
+            // at 0 — the commander correctly ignored both, but the wording asks for the wrong thing, and the real
+            // gap it points at (buildOrder has no fallback item) is a plan-editing job for the learner, not a
+            // mid-siege order. Gate the cheap conditions first so `every` is only consulted when they all hold.
+            if (sec() - M.sqIdleSince > 45 && P.stance !== 'attack' && !M.attack && pd.credits >= 1500 && every('sqIdle', 60)) {
+              log('warn', `建筑队列已空闲 ${Math.round(sec() - M.sqIdleSince)} 秒：buildOrder 已完成且没有兜底项，需要指挥官追加`);
+            }
           } else {
             M.sqIdleSince = null;
             const r = game.rules.getObject(next, 2);
@@ -750,7 +759,16 @@ function ra2Runtime() {
       if (!candidates.length) return;
       const gc = centroid(group);
       candidates.sort((a, b) => siegeRank(a) - siegeRank(b) || d2(xy(a), gc) - d2(xy(b), gc));
-      const tgt = candidates[0], tp = xy(tgt);
+      // Stick to the building we already committed to. This whole block re-runs every 0.7s and both sort keys move
+      // under us — the group centroid drifts during the march and buildings vanish as they fall — so a pure re-sort
+      // lets same-rank buildings on opposite sides of the enemy base take turns being "closest" and the army walks
+      // back and forth between them. match-015: siege() named the construction yard at 5:57; the first demolition
+      // only landed at 6:42, after the target had already drifted to an air force command and back.
+      // Stickiness is bounded by rank, so it can never park us on a worse class of building: if the rank-0 yard
+      // still stands we keep hitting it, and only when nothing but a strictly better class exists do we switch.
+      const sticky = M.siegeTarget && candidates.find(b => b.id === M.siegeTarget.id);
+      const tgt = sticky && siegeRank(sticky) <= siegeRank(candidates[0]) ? sticky : candidates[0];
+      const tp = xy(tgt);
       if (!M.siegeTarget || M.siegeTarget.id !== tgt.id) { log('siege', `没有敌军，拆建筑：${tgt.name} @${tp.x},${tp.y}`); M.siegeTarget = {id: tgt.id, name: tgt.name}; }
       M.attack.target = tp;
       const strikers = group.filter(u => d2(xy(u), tp) < 18 * 18).filter(u => { const h = M.siegeHit.get(u.id); return !h || h.id !== tgt.id || now - h.t > 6; });

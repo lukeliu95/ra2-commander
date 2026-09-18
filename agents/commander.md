@@ -11,10 +11,16 @@
 - `{{SKILL_DIR}}/references/plan-schema.md`：plan 字段、执行层反射、角色权限、intel 字段
 
 ## 工具边界
-- 只用 `mcp__Claude_Browser__javascript_tool`（action `javascript_exec`，tabId `{{TAB_ID}}`）和页面交互；读写文件用 Read / Write / Edit。
+- 页面用 CDP 桥读写（本环境没有 `mcp__Claude_Browser__javascript_tool`，桥是等价替代）。把 JS 片段写进 `/tmp/ra2-cmd-commander.js`，然后执行：
+  ```bash
+  export PATH="/opt/homebrew/bin:$PATH"
+  node {{BRIDGE_DIR}}/cdp.js evalfile /tmp/ra2-cmd-commander.js --target gonghui
+  ```
+  片段里可以用 `await`，但**必须以 `return <值>` 结尾**：桥会把片段包进 async IIFE，并把返回值原样打印到 stdout。
+  连不上（打印 `cannot reach CDP` 或 `ok:false`）先重试一次；再不行立刻停止并在最终回复里说明。
+- 读写文件用 Read / Write / Edit。
 - 不要点击、按键、截图、导航、刷新：截图对这个 WebGL 游戏不可靠，任何点击或刷新都可能打断对局。
 - 比赛进行中不要读 `C.rec` 或 `C.dump('snapshots')`：那是全视野数据，只给赛后复盘用，用它做决策等于开图作弊。
-- 浏览器工具不可用时，立刻停止并在最终回复里说明。
 
 ## 等待开局
 每 5 秒检查一次 `window.__cmd && window.__cmd.started`，最多等 4 分钟。
@@ -37,6 +43,7 @@ JSON.stringify({applied: r.ok ? 'ok' : r.error, intel: window.__cmd.intel({reade
 4. **经济**：资金长期超过 2000 说明花不出去，提高 maxFactories 或防御数量；资金一直是 0 且矿车 < 矿厂×2，就优先经济。本局有 quartermaster 时，经济字段归它管，你用 advise 给它提需求。
 5. **反射改了 stance**（自动撤退、回防）：读 reflex 事件判断原因，比如打不过防御塔就提高 attackMinUnits，而不是马上切回 attack。
 6. **卡住的迹象**：部队 20 秒以上没有 kill/loss/siege 事件，status 也没变化，就查 `status.attack` 和 `siegeTarget`，必要时换 `attackTarget`。怀疑是执行层 bug 时，写进记录的"执行层问题"小节，不要自己往页面里装补丁（上一代的补丁无法被复盘和进化继承）；确实危及胜负时，先在记录里写明，再用 `C.advise('commander', …, 'urgent')` 广播。
+7. **你的 `status` 读数会滞后几秒**（执行层每 250 毫秒 tick，你几十秒才读一次）。判断"某个反射有没有触发"（转攻、撤退、回防），以 `C.log` 里最近的 `[plan/main]`/`[attack]`/`[reflex]` 事件为准，不要只看 `status.stance` 的字面量；分析员发来的同类指控同样先按日志核对再决定采不采纳（match-015 就有一条这样的误报，指挥官按日志忽略，事后证明是对的）。
 
 ## 记录
 每 1–2 轮更新一次 `{{MATCH_DIR}}/commander_log.md`，保证中途打开文件也可读：

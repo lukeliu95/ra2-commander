@@ -10,9 +10,14 @@
 5. 列出执行层代码的问题，交给主会话修。
 
 ## 工具
-- 浏览器只用 `mcp__Claude_Browser__javascript_tool`（tabId `{{TAB_ID}}`），只读，不点击、不刷新：页面一刷新，内存里的对局数据就没了。
+- 页面用 CDP 桥只读（本环境没有 `mcp__Claude_Browser__javascript_tool`，桥是等价替代）。把 JS 片段写进 `/tmp/ra2-cmd-learner.js`，然后执行
+  `export PATH="/opt/homebrew/bin:$PATH"; node {{BRIDGE_DIR}}/cdp.js evalfile /tmp/ra2-cmd-learner.js --target gonghui`。
+  片段可以用 `await`，但必须以 `return <值>` 结尾，返回值原样打印到 stdout。不点击、不刷新：页面一刷新，内存里的对局数据就没了。
 - Bash 用于运行 `{{SKILL_DIR}}/scripts/` 下的脚本；Read / Write / Edit 用于写文件。
+- 本机 `python3` 走 `/usr/bin/python3` 会因 Xcode 许可失败，脚本一律用 `export PATH="/opt/homebrew/bin:$PATH"` 之后的 `python3`（或直接写 `/opt/homebrew/bin/python3.14`）。
 - 不要修改 `{{SKILL_DIR}}` 里的任何文件（代码修改由主会话审核后执行）。
+- 结束时把 `{{MATCH_DIR}}/debrief.md` 写完整，最终回复里给出它的路径。
+
 
 ## 赛后第一件事：确认数据还在，不在就立刻停手报告
 **在读任何日志、做任何分析之前**，先执行一次 `typeof window.__cmd` 和 `window.__cmd && window.__cmd.over`。
@@ -22,8 +27,11 @@
 ### 1. 归档对局数据到 `{{MATCH_DIR}}`
 赛后可以读全视野数据（前提是 `window.__cmd` 还在，见上一节）。
 - `JSON.stringify(window.__cmd.dump('meta'))` → 写入 `meta.json`
-- 日志：`window.__cmd.dump('log', {offset, limit: 300, excludeKinds: ['build', 'prod']})` 分页读完（offset 每次加 300，直到返回空数组），合并成一个数组写入 `log.json`。build/prod 类事件已经能从快照看出建造顺序，排除它们可以控制体积。
-- 快照：`window.__cmd.dump('snapshots', {offset, limit: 40, stride: 2})` 分页读完，合并写入 `snapshots.json`（stride 2 即每 20 秒一张）。
+- 日志：`window.__cmd.dump('log', {offset, limit: 50, excludeKinds: ['build', 'prod']})` 分页读完，合并成一个数组写入 `log.json`。build/prod 类事件已经能从快照看出建造顺序，排除它们可以控制体积。
+  **完整性判据是 `seq` 覆盖度，不是"读到空数组"**：过滤后的数组本来就短于 `meta.logCount`，`offset` 一过它的长度就返回 `[]`，看起来像"已经读完"。合并后必须断言 `merged.length === meta.logCount - Σ(excludeKinds 的条数)`、`min(seq) === 1`、`max(seq) === meta.logCount`；对不上就换更小的 limit 重读。
+- 快照：`window.__cmd.dump('snapshots', {offset, limit: 15, stride: 1})` 分页读完，合并写入 `snapshots.json`。
+  **不要用 `stride:2`**：每 20 秒一张会把决定性的短促交战压成一条"什么都没发生"的直线（match-015 的 5:13–5:24 塔线歼灭战就是这么消失的）。合并后断言 `len === meta.snapshotCount`。
+- 桥的单次调用超过 40 秒会超时，分页要小步走。
 - 运行 `python3 {{SKILL_DIR}}/scripts/summarize_match.py {{MATCH_DIR}}`，生成 `timeline.md`。
 
 ### 2. 登记战绩

@@ -18,7 +18,7 @@ description: 用多个 subagent 实时指挥网页版红色警戒2《王二火�
 - `agents/commander.md`、`agents/analyst.md`、`agents/quartermaster.md`（实时角色）；`agents/learner.md`（赛后角色）
 - `references/plan-schema.md`：plan 字段、反射、权限、intel 接口。修改方案或处理用户中途指令时读。
 - `references/game-api.md`：引擎接口、枚举、单位名、坑点清单、游戏更新后如何重新逆向。runtime 报错或行为异常时读。
-- `references/ui-navigation.md`：怎么点进遭遇战。每局开局前读。
+- `references/ui-navigation.md`：怎么点进遭遇战。每局开局前读。**本环境没有 `mcp__Claude_Browser__*` 工具，改用本机 CDP 桥 + 截图 OCR 驱动游戏页的具体做法（Chrome 启动参数、窗口高度、桥命令、看屏脚本）也写在这个文件的后半部分。**
 
 ## 流程
 

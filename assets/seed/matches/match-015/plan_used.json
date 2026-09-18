@@ -1,0 +1,48 @@
+{
+  "version": "v013",
+  "parent": "v012",
+  "createdAt": "2026-09-18T17:22:34",
+  "reason": "复盘 match-014（v012 首战负，9:06，我方盟军 GA @71,118 vs 敌方盟军 @135,80，出生点为 match-013 的镜像）。逐条重算损失（值表取自 game.rules 现场核实：E1 180/ADOG 200/JUMPJET 600/CMIN 1400/MTNK 750/FV 600/MGTK 1000/SREF 1200）：第一段 JUMPJET 空袭（3:43-7:12）我方 3380 : 敌方 8810 = 2.61:1 有利且零建筑损失，第二段 MGTK/SREF 地面碾压（7:12-9:06）我方 36380 : 敌方 9050 = 0.25:1，占全局损失 88.6%（全局 41040:24090 = 0.59:1）——即败因是反装甲，不是防空。(1) defenses.strongDef 1→2（T-017/T-041/T-042）：本局唯一反装甲塔 ATESLA（PrismWarhead 120 伤、对 light/heavy 都是 1.0，杀一辆 MGTK 只要 2 发/8 秒，是唯一能高效点掉 MGTK/SREF 的东西）到 8:47 才第一次挨打、8:49 就阵亡，整段 7:16-8:43 的威胁点 (81,107)-(85,106) 距它 (79,118) 有 9.2-20.1 格、全程在它射程 8 之外；而它在 7:12 之后仍是唯一有效对位手段。更重要的是数据支持这个字段真的能落地：核对安装代码 install.js:276-285，防御排产是 for...of Object.entries(wantDefenses(P,av)) 且 break 写在 if 之外，只有当前一个角色已满足数量才会轮到 strongDef——本局 7:40 指挥官把 baseDef 3→4 与 strongDef 1→2 写在同一个对象里，baseDef 从此永远不满足，strongDef 在随后 86 秒里一次都没被求值（0 条『排产防御 ATESLA』，而同一改动的 baseDef 部分在 8:24 排产了一座 GAPILL 且到判负都没放置）。若初始 plan 就写 strongDef:2，则在 baseDef 3/3、aaDef 2/2 都已满足、Armory 队列自 3:39 起空闲的前提下，4:21-5:01 是全局唯一一次我方资金 >750（980/1189/1060）的窗口，ATESLA#2 会在 4:21 排产、约 5:20 落地，比 7:12 的第二段早 112 秒。反面证据（match-009 的『反对加码』）不适用于本局：那局敌方是纯陆战苏军、1 座塔对 27 单位/5790 的大波零建筑损失；本局敌方是空优盟军且第二段是 11250 价值的复合重甲波。baseDef 保持 3（不加到 4）：3 座 GAPILL 用 SA 50 伤对 MGTK（light）25/发尚可、对 MTNK（heavy）只有 12.5/发，7:40 的 baseDef 3→4 本局产出为 0（8:24 排产的 GAPILL 到 9:06 都没放置），却把 strongDef 彻底锁死。(2) minerEscort 1→0（T-026 修订）：minerEscort:1 全程生效（v012 值），结果是 8 辆 CMIN 被击杀 = 11200，占全局损失 27.3%、占第二段机动部队损失 48.6%，8 次击杀全部发生在防线外且每一次都紧跟在 2-11 秒前的『矿车在防线外被打：撤回基地』或『等待超时，重新派回矿区』之后（8:15/8:19 强制重派 → 8:18/8:27/8:30 阵亡）；同时 0 次可观测的护卫拦截（match-009 同样 minerEscort:1 且 0 次可观测效果 → 2 局 0 收益）。代价是可量化的：install.js:612-619 的护卫取 units 里速度最快的单位（FV 39.4 恒为最快），AttackMove 到矿区矿格待命，而敌方的袭扰点 (81,107)-(91,105) 距矿区 12-20 格——8:01 快照显示我方全部机动部队只剩 1 辆 FV，坐标 (84,122) 正是矿区，同一时刻 SREF×2 在 (81,107) 无人阻拦地拆 NASAM。把护卫撤掉等于把这辆 FV 还给塔线，符合 T-011/T-021『只在塔射程内接战』。(3) 明确不改的候选（避免下一轮重复试错）：minersPerRefinery 2→3 被账面否决——敌方 11 辆矿车 vs 我方 6 辆上限确实是经济差距的来源（累计产出约 5.0 万 vs 敌方约 7.0 万，敌方结束时 11 辆 CMIN 存活、我方 0 辆），但按本局实测回本速度（我方累计采矿约 4.0 万 / 546 秒 / 平均 3.4 辆 ≈ 21 秒/辆/100 元）第 4-9 辆矿车（3 辆 4200）要到 7:56 才回本，晚于 7:12 的第二段，而且矿车与坦克共用 vq 队列、这 4200 会直接换成少 5 辆 MTNK——正是 T-016 match-005 的翻版。infantryCap 8→4 也被否决：v012 的理由（写死进默认值会伤害苏军 20 E2 首波）仍然成立，且 T-020 的设计就是『确认阵营后再降』。把 strongDef 在 defenses 对象里前置成第一个键来绕开 break 的做法被明确否决：本局 strongDef 在前 4 分钟是 1/1 已满足，但一旦它不满足且资金为 0（全局 15/29 张快照资金为 0），break 会在它身上触发，aaDef/baseDef 将永远轮不到——第 2 座 NASAM（0:59 与 2:38 落地，正是它顶住了 3:43 起的 12 架 JUMPJET）就不会存在。已写入 matches/match-014/runtime_issues.md。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 2
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 0,
+    "defendRetreatRatio": 0.4
+  }
+}

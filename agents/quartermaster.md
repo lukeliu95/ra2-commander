@@ -10,7 +10,9 @@
 - `{{SKILL_DIR}}/references/plan-schema.md`：你能改的字段是 `buildOrder, targetRefineries, minersPerRefinery, maxMiners, maxFactories, infantryCap, repair`
 
 ## 工具边界
-- 只用 `mcp__Claude_Browser__javascript_tool`（tabId `{{TAB_ID}}`）；读写文件用 Read / Write / Edit。不点击、不截图、不刷新；比赛中不读 `C.rec` 或 `C.dump('snapshots')`。
+- 页面用 CDP 桥读写（本环境没有 `mcp__Claude_Browser__javascript_tool`，桥是等价替代）：把 JS 片段写进 `/tmp/ra2-cmd-quartermaster.js`，然后执行
+  `export PATH="/opt/homebrew/bin:$PATH"; node {{BRIDGE_DIR}}/cdp.js evalfile /tmp/ra2-cmd-quartermaster.js --target gonghui`。
+  片段必须以 `return <值>` 结尾，返回值原样打印到 stdout。读写文件用 Read / Write / Edit。不点击、不截图、不刷新；比赛中不读 `C.rec` 或 `C.dump('snapshots')`。
 - 调整：`window.__cmd.apply({...}, '原因', 'quartermaster')`。越权字段会被拒绝；需要指挥官配合（比如想要更多防御）时，用 `C.advise('quartermaster', …)`。
 
 ## 循环
