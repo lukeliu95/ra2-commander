@@ -21,7 +21,7 @@
 | `attackTarget` | `'auto'`（建造厂 > 电厂 > 防御 > 工厂 > 矿厂）或 `[x,y]` | auto |
 | `siegeAutoAttackUnits` / `siegeQuietSeconds` | 防守姿态下连续 N 秒看不到敌军且我方单位 ≥ 门槛，就自动转进攻 | 8 / 10 |
 | `scout` / `repair` | 开局派军犬侦察；建筑血量 <70% 自动修理 | true / true |
-| `minerEscort` | 从部队里抽这么多个（按速度优先）常驻各矿厂旁待命，而不是等矿车挨打了才反应。默认 0=关闭，是预防性字段——没证据显示对手会点名偷袭矿车之前不建议开（T-026，match-006 只是设计提案，没有实战验证过） | 0 |
+| `minerEscort` | 从部队里抽这么多个（按速度优先）派到**各矿厂所对应的矿区矿格**上待命，而不是等矿车挨打了才反应。**必须是矿区而不是矿厂建筑**：矿车是在基地外的矿格上挖矿的，护卫站在矿厂旁边拦不住任何去野矿打矿车的人（match-009 用 `minerEscort:1` 打完整局零可观测效果，指挥官追查到就是这个实现偏差；找不到已知矿格时退回矿厂坐标）。默认 0=关闭，是预防性字段——没证据显示对手会点名偷袭矿车之前不建议开（T-026，match-006 只是设计提案，match-009 仍未实战验证） | 0 |
 
 ## 执行层反射（不需要 agent 参与）
 - 敌军进入我方建筑 `threatRadius` 范围，或攻击矿车，并且在拴绳范围内：全军攻击移动到防御塔旁的迎击点，迎击半径取 `min(leashRadius, 锚定塔武器射程-1)`（match-005 证明过：不按塔的实际射程算，部队会站在塔火力覆盖不到的地方对射送死）。**这场交战会记录开始时的部队价值，跌到 `defendRetreatRatio` 就撤回基地不再硬拼**（match-007 之前这里没有任何退出条件：3 MTNK+5 E1 在原地被 5 个卧倒 E1 磨到 0 才停手，`threatValue` 的伤害加权只喂给了日志和"进攻部队要不要回防"两处，从没接到防守分支的决策上）。进攻途中家里的威胁超过我方部队价值 25%：撤回主力，stance 变回 defend。
@@ -38,8 +38,8 @@
 - **敌方逼近时，关键防御建筑绕开资金门槛**：敌方飞行单位在附近时，防空建筑（如 NASAM）只要资金 ≥300 就能排产（match-007：NASAM 造价 1000，永远够不到"警报下 ≤700 才能绕过门槛"这条快速通道，`airSeen` 触发后资金持续紧张，7 架 JUMPJET 在基地里停了 90 秒零拦截）。同样地，敌方重型载具/高价值步兵（cost≥500）在附近时，`strongDef`（光棱塔/磁暴线圈）只要资金够造价的 30% 就能排产，不用等平时"资金>700 且够半价"的门槛（match-008：ATESLA 造价 1500，2:33 排产到 3:47 还没放置，唯一能克制 LTNK/GHOST2 的火力全程没能参战）。
 - 建造顺序里的项目连续 60 秒不可造（比如国家专属建筑名不对）：记一条 warn。
 - 进攻部队折损到 `retreatRatio`：撤回集结点，stance 变回 defend。
-- 攻城：进攻中附近没有敌军时，直接集火建筑（建造厂 > 电厂 > 防御 > 工厂 > 矿厂）。
-- 防守中长时间看不到敌军、兵力够、**且至少有 1 个载具**：自动转进攻（作者记为 `main`）。只看单位数量不看构成的话，纯步兵凑够数也会被送去攻城（match-007：8 个 E1、坦克还在建，被送去冲一个连阵营都没确认的敌方基地）。
+- 攻城：进攻中附近没有敌军时，直接集火建筑（建造厂 > 电厂 > 防御 > 工厂 > 矿厂，**核电站排最后**）。核电站（`NANRCT`）被摧毁时会原地爆炸，而它的 `rules.power > 0` 原本让它落进 rank 1（仅次于建造厂）——等于我们主动把坦克堆在一颗炸弹上当作第二优先目标（match-009：7:25 同 tick 摧毁 NANRCT 并损失 3 辆犀牛 2700，是整局单次最大战损）。降到最低优先级没有代价：能打到它时敌方已经没气了。
+- 防守中敌方**野战部队**（离敌方出生点 >15 格，即 `intel` 里 `field` 的口径）为空且持续 `siegeQuietSeconds`、我方单位数 ≥ `siegeAutoAttackUnits`、**至少有 1 个载具**、**且我方部队价值 ≥ 敌方可见部队价值的 2 倍（T-005）**：自动转进攻（作者记为 `main`）。这条规则的两个判据都踩过坑：只看单位数量不看构成，纯步兵凑够数也会被送去攻城（match-007：8 个 E1、坦克还在建，被送去冲一个连阵营都没确认的基地）；而"安静"若理解成"全地图看不到任何敌方单位"，在无战争迷雾的引擎里对龟缩型对手**永不成立**，因为敌方缩在家里的部队一直可见（match-009：我方 25 个单位对敌方 15 个龟缩单位、`attackMinUnits` 早已满足，反射一次都没触发，靠指挥官 5:40 手动转攻才拿下这局）。改成只看野战部队会引入新风险——兵力和龟缩的敌人持平时也会触发一次 74 格远征——所以 T-005 的 2 倍价值优势是硬条件；只差这一条时会每 30 秒记一条 warn，让实时角色看得见反射卡在哪一步。
 
 这些反射会把 stance 改回 defend，指挥官读到对应事件后要重新判断，而不是盲目再切回 attack。
 
@@ -59,7 +59,8 @@
   - `enemy`：start、visibleArmy {count, value, comp, field, atEnemyHome, note}、knownBuildings、airSeen、approachFrom
     - 这个引擎没有战争迷雾：侦察过的区域永久可见，所以敌方留在家里的单位也算"可见"。`visibleArmy.field` 只算离敌方出生点 >15 格的野战部队 {count, value, comp, at, distToMyBase, trend}；`atEnemyHome` 是留守/新造的单位 {count, value, comp}，可以当作免费的科技侦察，但**不要用它判断来袭**
   - `enemy.lead`：离我方基地最近的敌军前锋群（排除还在敌方出生点 15 格内的单位）{count, value, comp, at, distToMyBase, trend, tilesPerSec, etaToDefenseLineSec}。**预判到达时间用它**：全体中心点会被慢速步兵和留守单位拖住，match-003 用中心点估的 ETA 6 次只准 2 次
-  - `status`：stance、alarm、attack、siegeTarget、scouted
+  - `status`：stance、alarm、attack、siegeTarget、scouted。`attack` 非 null 时形如 `{target, startValue, since, count, at}`——`at` 是**攻城分队自己的质心**，不是 `me.army.at`。后者是全体（含新出厂留守单位和落后一大截的步兵）的质心，攻城期间可能落后实际战况 30 格以上（match-009：报告在 (100,102)，而部队已在 (71,118) 拆建筑），判断"攻势是否推进/要不要回防"要用 `attack.at` 和 `attack.count`。
+  - `tally`：**本局累计**击杀/损失 `{kill: {comp, value}, loss: {comp, value}}`（含建筑，估价口径与 `me.army.value` 一致）。交换比直接 `kill.value / loss.value`。不要自己从 `events` 里逐条累加：那是个会被截断的滚动窗口（看 `droppedEvents`），match-009 里两个实时角色**各自独立**算错了同一场的交换比（报 2.8:1，实为 1.76:1，高估 59%），而指挥官的转攻决策正是引用这个错数字做的。
   - `events`（自上次读取以来）、`droppedEvents`、`plan`
   - `detail:true` 时额外返回：`available`（可生产列表）、`enemy.typesFirstSeen`、`enemy.buildingsFirstSeen`、`enemy.armyTrack`（最近 10 次敌军位置/距离）
 - 事件类型：build、prod、intel、alarm、reflex、attack、siege、scout、kill、loss、plan、advice、warn、error、over、start

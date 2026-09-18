@@ -79,7 +79,11 @@ function ra2Runtime() {
     const M = C.mem = {side: null, sideKey: null, enemyBuildings: new Map(), enemyTypes: new Map(), myIds: new Map(), enemyUnitIds: new Map(),
       armyHist: [], approach: null, alarm: false, airSeen: false, attack: null, scoutId: null, scouted: false, repairing: new Set(),
       lastOrder: new Map(), pendingPlace: 0, lastTick: {}, oreTiles: [], siegeTarget: null, siegeHit: new Map(), noArmySince: null,
-      av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null, stillTicks: new Map(), hoardSince: null, hoardWarned: 0, defend: null, defendBroken: false, airNearWarned: false};
+      av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null, stillTicks: new Map(), hoardSince: null, hoardWarned: 0, defend: null, defendBroken: false, airNearWarned: false,
+      // Cumulative battle tallies. Both real-time roles independently mis-added the exchange ratio in match-009
+      // (reported 2.8:1, actually 1.76:1 — a 59% error) because `events` is a truncated rolling window and there
+      // was no running total to read. Kept here rather than parsed back out of log strings.
+      costByName: {}, kills: {}, losses: {}, killValue: 0, lossValue: 0};
     const sec = () => g.getCurrentTick() / rate;
     const every = (key, s) => { const now = sec(); if (now - (M.lastTick[key] ?? -1e9) >= s) { M.lastTick[key] = now; return true; } return false; };
     // A role may map to candidates (e.g. country-specific radar); pick the one that is buildable or already owned.
@@ -305,7 +309,15 @@ function ra2Runtime() {
 
     function intelSample(S) {
       const now = sec();
+      // Cache name -> cost for everything we ever see, so kills/losses can be valued after the object is gone.
+      const cacheCost = o => { const c = cost(o); if (c) M.costByName[o.name] = c; };
+      const bump = (which, comp) => {
+        let v = 0;
+        for (const [n, k] of Object.entries(comp)) { M[which][n] = (M[which][n] || 0) + k; v += (M.costByName[n] || 0) * k; }
+        if (which === 'kills') M.killValue += v; else M.lossValue += v;
+      };
       for (const o of S.hostile) {
+        cacheCost(o);
         if (o.isBuilding()) { if (!M.enemyBuildings.has(o.id)) { M.enemyBuildings.set(o.id, {name: o.name, ...xy(o), seen: now}); log('intel', `发现敌方建筑 ${o.name} @${xy(o).x},${xy(o).y}`); } }
         else {
           if (!M.enemyTypes.has(o.name)) { M.enemyTypes.set(o.name, now); log('intel', `首次发现敌方单位类型 ${o.name}${isAir(o) ? '（空中）' : ''}`); }
@@ -313,13 +325,14 @@ function ra2Runtime() {
           M.enemyUnitIds.set(o.id, o.name);
         }
       }
-      for (const [id, b] of M.enemyBuildings) if (!game.getWorld().hasObjectId(id)) { M.enemyBuildings.delete(id); log('kill', `摧毁敌方建筑 ${b.name}`); }
+      for (const o of S.mine) cacheCost(o);
+      for (const [id, b] of M.enemyBuildings) if (!game.getWorld().hasObjectId(id)) { M.enemyBuildings.delete(id); bump('kills', {[b.name]: 1}); log('kill', `摧毁敌方建筑 ${b.name}`); }
       const lostE = []; for (const [id, n] of M.enemyUnitIds) if (!game.getWorld().hasObjectId(id)) { M.enemyUnitIds.delete(id); lostE.push(n); M.stillTicks.delete(id); }
-      if (lostE.length) log('kill', `击杀敌方 ${JSON.stringify(tally(lostE))}`);
+      if (lostE.length) { const comp = tally(lostE); bump('kills', comp); log('kill', `击杀敌方 ${JSON.stringify(comp)}`); }
       const cur = new Set(S.mine.map(o => o.id));
       const lost = []; for (const [id, n] of M.myIds) if (!cur.has(id)) { lost.push(n); M.myIds.delete(id); }
       for (const o of S.mine) M.myIds.set(o.id, o.name);
-      if (lost.length) log('loss', `我方损失 ${JSON.stringify(tally(lost))}`);
+      if (lost.length) { const comp = tally(lost); bump('losses', comp); log('loss', `我方损失 ${JSON.stringify(comp)}`); }
       const base = baseCenter(S.buildings);
       const army = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
       // Track which hostile infantry haven't moved in a while: deployed infantry (e.g. E1 -> M60E) deal much
@@ -512,12 +525,21 @@ function ra2Runtime() {
       }
       // T-026: a small standing guard at the refineries, not just a reaction once a miner is already hurt.
       // Opt-in (default 0) — only spend units on this once a matchup is known to snipe miners before they take damage.
+      // The guard has to sit on the *ore patch*, which is where a miner is actually exposed: posting it on the
+      // refinery's own tile can never intercept a sniper working the patch (match-009 ran with minerEscort:1 and
+      // logged no effect; the commander traced it to this mismatch with the T-026 wording). Falls back to the
+      // refinery tile when no ore is known yet.
       const refPts = S.buildings.filter(b => b.rules.refinery).map(xy);
+      const oreNear = r => {
+        if (!M.oreTiles.length) return null;
+        const inRange = M.oreTiles.filter(t => d2(t, r) < 20 * 20);
+        return inRange.length ? inRange.reduce((a, t) => (d2(t, r) < d2(a, r) ? t : a)) : null;
+      };
       const guardCount = Math.min(P.minerEscort || 0, units.length, refPts.length);
       const guardIds = new Set();
       for (let i = 0; i < guardCount; i++) {
         const u = [...units].sort((a, b) => (b.rules.speed || 0) - (a.rules.speed || 0))[i];
-        const spot = refPts[i];
+        const spot = oreNear(refPts[i]) || refPts[i];
         orderThrottled([u], ORD.AttackMove, spot.x, spot.y, 'escort:' + u.id, 8);
         guardIds.add(u.id);
       }
@@ -525,20 +547,41 @@ function ra2Runtime() {
     }
 
     // Attack-move ignores ordinary buildings, so with no enemy army nearby issue direct attacks: CY > power > defenses > production > refinery.
-    const siegeRank = b => b.rules.constructionYard ? 0 : (b.rules.power > 0 ? 1 : b.rules.isBaseDefense ? 2 : /WEAP|PILE|HAND|AIRC|RADR|TECH|YARD/.test(b.name) ? 3 : b.rules.refinery ? 4 : 5);
+    // A nuclear reactor (NANRCT) detonates when destroyed, and it carries rules.power > 0 — so the old ranking
+    // made it a rank-1 target, i.e. we deliberately stacked the army onto a bomb as our second priority.
+    // match-009 lost 3 HTNK (2700) in a single tick that way, the largest single loss of the match. Demote it to
+    // last: by the time we reach it the enemy is finished anyway, so hitting it early buys nothing but our tanks.
+    const isNuke = b => !!(b.rules.nuclear || /NRCT|NUKE/.test(b.name));
+    const siegeRank = b => isNuke(b) ? 6 : b.rules.constructionYard ? 0 : (b.rules.power > 0 ? 1 : b.rules.isBaseDefense ? 2 : /WEAP|PILE|HAND|AIRC|RADR|TECH|YARD/.test(b.name) ? 3 : b.rules.refinery ? 4 : 5);
     function siege(S) {
       const P = C.plan, now = sec();
       const armyUnits = S.mine.filter(isCombat).filter(o => o.id !== M.scoutId || M.scouted);
       const enemyUnits = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
       if (P.stance === 'defend' && !M.alarm) {
-        if (enemyUnits.length === 0) {
+        // "Quiet" has to mean the enemy has no troops in the *field*, not that none are visible anywhere. There is
+        // no fog of war, so a turtling AI keeps its whole army visible at home and `enemyUnits.length === 0` never
+        // becomes true: match-009 sat on 25 units with 15 enemy units turtled for 90s, attackMinUnits (10) was long
+        // satisfied, and this rule never fired — the commander had to set stance by hand to win. T-024's wording is
+        // "no enemy troops on the field", which is exactly `field` in the intel schema (further than 15 tiles from
+        // the enemy start). Fixing only the judge would be worse than the bug though: a turtled enemy at parity
+        // would now trigger a 74-tile march the moment our count crossed the threshold, so T-005's real edge
+        // (>= 2x the enemy's visible army value) is required as well.
+        const fieldUnits = enemyUnits.filter(o => dist(xy(o), enemyStart()) > 15);
+        if (fieldUnits.length === 0) {
           M.noArmySince ??= now;
           // Require at least one vehicle before auto-committing: match-007 sent 8 bare E1 (MTNK still building)
           // into an unscouted enemy base on unit count alone, while 5 enemy E1 were already closing on our own base.
           const hasVehicle = armyUnits.some(o => o.isVehicle && o.isVehicle());
-          if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits && hasVehicle) {
-            C.apply({stance: 'attack', attackMinUnits: Math.min(P.attackMinUnits, armyUnits.length)}, `攻城规则：${P.siegeQuietSeconds} 秒看不到敌方部队，我方 ${armyUnits.length} 个单位（含载具），转入进攻拆建筑`, 'main');
+          const myValue = armyUnits.reduce((s, o) => s + cost(o), 0);
+          const enemyValue = enemyUnits.reduce((s, o) => s + cost(o), 0);
+          const advantage = enemyValue === 0 || myValue >= enemyValue * 2;
+          if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits && hasVehicle && advantage) {
+            C.apply({stance: 'attack', attackMinUnits: Math.min(P.attackMinUnits, armyUnits.length)}, `攻城规则：${P.siegeQuietSeconds} 秒敌方无野战部队，我方 ${armyUnits.length} 个单位（含载具、价值 ${myValue}）对敌方 ${enemyValue}（T-005 优势达标），转入进攻拆建筑`, 'main');
             M.noArmySince = null;
+          } else if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits && hasVehicle && every('siegeBlocked', 30)) {
+            // Every other gate is met and only the ratio is holding us back — say so. Without this the only way to
+            // notice a stuck reflex is `status.attack` staying null, which is what match-009's analyst had to do.
+            log('warn', `自动转攻被 T-005 优势门槛挡住：我方价值 ${myValue} 对敌方 ${enemyValue}（需 2 倍），继续防守`);
           }
         } else M.noArmySince = null;
         return;
@@ -663,6 +706,11 @@ function ra2Runtime() {
       const fresh = C.log.filter(e => e.seq > cursor);
       C.cursors[reader] = C.seq;
       const qs = [0, 1, 2, 3].map(t => { const q = queue(t); return q && q.currentSize ? `${QN[t]}:${q.getAll().map(i => `${i.rules.name}${Math.round((i.progress || 0) * 100)}%`).join('+')}${q.status === ST.OnHold ? '(暂停)' : ''}` : null; }).filter(Boolean);
+      // me.army.at is the centroid of every combat unit, which includes stragglers and newly built defenders left
+      // at home — so it can sit 30+ tiles behind a strike force that is already inside the enemy base (match-009
+      // reported (100,102) while the group was razing buildings at (71,118), leaving the commander unable to tell
+      // whether the offensive was progressing). Expose the attacking group on its own.
+      const strikeGroup = M.attack ? S.mine.filter(o => isCombat(o) && M.attack.ids.has(o.id)) : [];
       const out = {
         time: fmt(now), side: M.sideKey, over: C.over, reader,
         me: {credits: pd.credits, power: `${pd.power.total}/${pd.power.drain}${pd.power.isLowPower ? ' 低电!' : ''}`, base,
@@ -676,7 +724,12 @@ function ra2Runtime() {
             note: '探过的区域永久可见（无战争迷雾）。distToMyBase/trend 只按 field（离敌方出生点 >15 格）计算；估时间用 lead。'},
           lead,
           knownBuildings: tally([...M.enemyBuildings.values()].map(b => b.name)), airSeen: M.airSeen, approachFrom: M.approach},
-        status: {stance: C.plan.stance, alarm: M.alarm, attack: M.attack ? {target: M.attack.target, startValue: M.attack.value, since: fmt(M.attack.t)} : null, siegeTarget: M.siegeTarget, scouted: M.scouted},
+        // Running battle total for the whole match, so a ratio never has to be reconstructed from a truncated
+        // `events` window (match-009: two independent roles both got it wrong by 59%). Value uses the same
+        // cost() basis as me.army.value / enemy.visibleArmy.value.
+        tally: {kill: {comp: M.kills, value: M.killValue}, loss: {comp: M.losses, value: M.lossValue},
+          note: '本局累计（含建筑）。交换比 = kill.value / loss.value。'},
+        status: {stance: C.plan.stance, alarm: M.alarm, attack: M.attack ? {target: M.attack.target, startValue: M.attack.value, since: fmt(M.attack.t), count: strikeGroup.length, at: centroid(strikeGroup)} : null, siegeTarget: M.siegeTarget, scouted: M.scouted},
         events: fresh.slice(-maxEvents).map(e => `${e.t} [${e.kind}${e.author ? '/' + e.author : ''}] ${e.msg}`),
         droppedEvents: Math.max(0, fresh.length - maxEvents),
         plan: C.plan,

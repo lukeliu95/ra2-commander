@@ -1,0 +1,132 @@
+{
+ "matchId": "match-009",
+ "runtimeVersion": "rt-cea4cb56a8",
+ "planVersion": "v007",
+ "result": "won",
+ "durationSec": 466,
+ "me": "Player 1",
+ "side": "NA",
+ "enemies": [
+  "@@AI2@@"
+ ],
+ "starts": {
+  "Player 1": {
+   "x": 135,
+   "y": 80
+  },
+  "@@AI2@@": {
+   "x": 71,
+   "y": 118
+  }
+ },
+ "factions": {
+  "Player 1": "Arabs",
+  "@@AI2@@": "Russians"
+ },
+ "plan0": {
+  "stance": "defend",
+  "buildOrder": [
+   "power",
+   "refinery",
+   "barracks",
+   "factory",
+   "refinery",
+   "power",
+   "radar",
+   "refinery",
+   "power"
+  ],
+  "targetRefineries": 4,
+  "minersPerRefinery": 2,
+  "maxMiners": 12,
+  "maxFactories": 2,
+  "vehicleMix": {
+   "tank": 4,
+   "aaVehicle": 1
+  },
+  "infantryMix": {
+   "inf": 1
+  },
+  "infantryCap": 8,
+  "defenses": {
+   "baseDef": 2,
+   "aaDef": 1,
+   "strongDef": 1
+  },
+  "defenseDistance": 6,
+  "threatRadius": 14,
+  "leashRadius": 4,
+  "sortieMaxUnits": 4,
+  "minerEscort": 1,
+  "attackMinUnits": 10,
+  "retreatRatio": 0.35,
+  "defendRetreatRatio": 0.4,
+  "attackTarget": "auto",
+  "siegeAutoAttackUnits": 14,
+  "siegeQuietSeconds": 10,
+  "scout": true,
+  "repair": true
+ },
+ "planFinal": {
+  "stance": "attack",
+  "buildOrder": [
+   "power",
+   "refinery",
+   "barracks",
+   "factory",
+   "refinery",
+   "power",
+   "radar",
+   "refinery",
+   "power"
+  ],
+  "targetRefineries": 4,
+  "minersPerRefinery": 2,
+  "maxMiners": 12,
+  "maxFactories": 2,
+  "vehicleMix": {
+   "tank": 4
+  },
+  "infantryMix": {
+   "inf": 1
+  },
+  "infantryCap": 8,
+  "defenses": {
+   "baseDef": 2,
+   "aaDef": 1,
+   "strongDef": 1
+  },
+  "defenseDistance": 6,
+  "threatRadius": 14,
+  "leashRadius": 4,
+  "sortieMaxUnits": 4,
+  "minerEscort": 1,
+  "attackMinUnits": 10,
+  "retreatRatio": 0.35,
+  "defendRetreatRatio": 0.4,
+  "attackTarget": "auto",
+  "siegeAutoAttackUnits": 14,
+  "siegeQuietSeconds": 10,
+  "scout": true,
+  "repair": true
+ },
+ "logCount": 229,
+ "snapshotCount": 48,
+ "logKinds": {
+  "start": 2,
+  "build": 33,
+  "scout": 2,
+  "intel": 27,
+  "reflex": 16,
+  "prod": 4,
+  "warn": 10,
+  "alarm": 24,
+  "kill": 64,
+  "advice": 9,
+  "plan": 2,
+  "loss": 18,
+  "attack": 1,
+  "siege": 16,
+  "over": 1
+ }
+}

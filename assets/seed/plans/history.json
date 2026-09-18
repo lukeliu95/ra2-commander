@@ -61,6 +61,12 @@
       "result": "lost",
       "durationSec": 260,
       "opponent": "ai-easy"
+    },
+    {
+      "match": "match-009",
+      "result": "won",
+      "durationSec": 466,
+      "opponent": "ai-easy"
     }
   ]
 }
