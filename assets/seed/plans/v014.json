@@ -1,0 +1,53 @@
+{
+  "version": "v014",
+  "parent": "v013",
+  "createdAt": "2026-09-18T23:05:21",
+  "reason": "match-016 复盘：启用查打一体（recon-strike）。本局（我方 GA @71,118 vs 敌方盟军 @135,80，与 match-014 同组合，6:01 判负）暴露的不是规则不够多，而是『读战场→下动作→回读验证』这条链从未闭合：执行层每 0.8s 已在判断（army()），但 agent 只能改阈值、无法表达条件动作，且任何指令下发后没有回执。新 runtime（rt-71e52110）把纯逻辑引擎内联进执行层：C.tacRead 给结构化战场态（含跨采样 trend）、C.tacAct 下发 hold/focus/reposition/withdraw/screen/reinforce、每个动作自带 verify+fallback 并在下一轮回读（C.tacRead().lastVerify 首次让动作有回执）。默认值：tacticalInterval 3 秒、tacticalMaxOrders 3、tacticalSuppressSec 4（抑制宏逻辑覆盖战术判决的窗口）、tacticalBreakRatio 0.45（破线滞回）。代码已提交（1acd188 + 6d99863），纯核心 22 项与接线 18 项断言全绿。**本局是首次实战检验**，重点观察：tac[phase] 日志是否按档出现、lastVerify.failed 是否常非零、抑制窗口与 army() 迎击分支是否互相打架；若出现持续打架则回退到 tacticalSuppressSec 2 或关闭 tacticalMode。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 2
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 0,
+    "defendRetreatRatio": 0.4,
+    "tacticalMode": true,
+    "tacticalInterval": 3,
+    "tacticalMaxOrders": 3,
+    "tacticalSuppressSec": 4,
+    "tacticalBreakRatio": 0.45
+  }
+}

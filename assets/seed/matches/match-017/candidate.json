@@ -1,0 +1,4 @@
+{
+  "defenses": { "strongDef": 2, "aaDef": 2, "baseDef": 3 },
+  "siegeAutoAttackUnits": 45
+}

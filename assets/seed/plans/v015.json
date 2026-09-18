@@ -1,0 +1,53 @@
+{
+  "version": "v015",
+  "parent": "v014",
+  "createdAt": "2026-09-18T23:30:23",
+  "reason": "复盘 match-017（我方古巴 CA @135,80 vs 敌方盟军 Americans @71,118，v014 首战负，11:35；rt-71e521101e）。只改 2 个字段，两个都直接对应本局最直接的失血源，且都刻意保持与 v014 相同的键集（不新增字段）。(1) defenses 键序改为 strongDef→aaDef→baseDef，值的数量全部维持 v014 原值 {strongDef:2, aaDef:2, baseDef:3}：本局 0:00–9:58 零静态防御，根因是 SIDES.CA 把三个角色名映射成了苏军建筑（NALASR/NAFLAK/ATESLA），av.has 恒 false、每 tick 静默 continue、连一条日志都没有（T-048，主会话 afb4b83 已修 CA 行并补 60 秒节流 warn）。修好之后这三条目标第一次真正可达成，而 DEF_PRIORITY=['strongDef','aaDef','baseDef'] 决定求值顺序——CTESLA（1500/600HP/PrismShot 120 伤/射程 8，前置只要 RADAR+CACNST，本局 CARADR 1:47 就落地、全程余电恒 215）是 CA 唯一射程 >=7 的东西，MGTK 的 MirageGun 射程 7 大于 LTNK 5.75/CAPILL 5.5/BGGY 6/PLA 4，所以 strongDef 必须排第一（T-017/T-020/T-042/T-049）。defenses 一律写角色名，不写 v014 末段那种字面名 {CTESLA:...}：字面名只对 CA 恰好成立，对 GA/NA 会变成\"本阵营不可造\"的永久空转目标（新 runtime 每 60 秒 warn 一条），不能 promote。(2) siegeAutoAttackUnits 14→45（跟随指挥官 5:18 的 40 与 8:53 的 45，取终值）：停住一条正在连续放血的反射——2:19 与 4:21 两次自动转攻都读到\"敌方 field=0 + 我方 2 倍价值\"，实际是敌方主力全部停在离出生点 15 格以内（atEnemyHome）且基地完整有塔有产能，两次合计亏 16210:13490 = 0.83:1，是本局最大的失血源（大于它唯一一次成建制总攻，那次我方 2.07:1 有利）；对照 match-011/012 阈值 14 的正确触发点全部是\"敌基地已被打软\"，match-013/017 的误触发点全部是\"敌基地完整\"（T-005/T-028）。45 单位 ≈ 34400 价值，本局战斗单位峰值只有 32（历史峰值 match-015 30、match-009 25），在可预见的对局里不会触发——即这是一次结构性关闭，不是调参。判断依据：在反射判据里没有\"敌基地成色\"（可见静态防御数、atEnemyHome 斜率、出发方向有没有射程覆盖）这一项之前，它的期望值是负的（4 次实战 2 次灾难 1 次大亏，2 次成功那两次敌方都已被打崩）。条件型修法（不是数值型）已写入 runtime_issues.md #3：这两条都不是 plan 字段能表达的，DEFAULT_PLAN 里没有对应键，写进 candidate.json 会被 unknown-field 校验拒绝。\\n\\n明确不改（避免下一轮重复试错）：(a) vehicleMix 保持 {tank:4}——本局 BGGY 达 17 辆纯属 airSeen 反射在 3:39/5:45 两次把 aaVehicle 补到 >=2 后再没降回，而指挥官 1:43 手工设的 {tank:3,aaVehicle:2} 是当轮 apply 的临时值；BGGY 的 airRangeBonus=4 只对空生效（对空射程 10 优于 JUMPJET 射程 5），对地只有基础射程 6 的 300HP/armor3 脆皮，17 辆的损失里大部分是 9:34–10:02 与 MGTK 对射送掉的——删 aaVehicle 会让 airSeen 反射失效，保留它则已由反射自行处理，没有证据支持改权重；下一局对盟军的观察项是\"airSeen 反射补上来的 aaVehicle 在 JUMPJET 波被吃掉后是否该降回\"。(b) tacticalMode 保持 true（v014 值）：主会话 97a1a42 已补上 TAC 的实例化并加了 12 项静态接线自检（含 TDZ 顺序检查 + 反向验证），本局 0:01 的 5+8 条 TAC is not defined 在下一局应当为 0 条；若再出现，第一动作是把 tacticalMode 置 false 并记 runtime issue，而不是改别的字段。本局查打一体按\"未验证\"记录（它在场上 0 动作）。(c) infantryCap 保持 8：本局 0 次调 cap 的机会窗口（1:43 确认阵营那一轮只改了 vehicleMix），且降 cap 的收益需要\"敌方以 AP 武器坦克为主\"才成立，本局主要杀伤来源是 MGTK 的 MirageWH（对我方无减伤）与 JUMPJET 的 SSA，按 T-050 记\"未验证\"。(d) maxMiners 保持 8、minersPerRefinery 保持 2：按 T-045 核对，实际生效值是 min(8, 3 矿厂 x 2)=6，66 张快照里 CHAR 峰值就是 6，上限从未 binding，改它是 inert；真正没回答的问题是\"6 辆矿车下 20/37 张快照资金为 0 要不要提 minersPerRefinery\"，留作下一局观察项。(e) 不把 v014 末段的字面 defenses {CTESLA:2,MSAM:2,CAPILL:3} 带进任何版本（理由见 (1)）。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 45,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "strongDef": 2,
+      "aaDef": 2,
+      "baseDef": 3
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 0,
+    "defendRetreatRatio": 0.4,
+    "tacticalMode": true,
+    "tacticalInterval": 3,
+    "tacticalMaxOrders": 3,
+    "tacticalSuppressSec": 4,
+    "tacticalBreakRatio": 0.45
+  }
+}

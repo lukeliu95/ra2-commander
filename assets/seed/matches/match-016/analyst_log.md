@@ -134,9 +134,74 @@
 1. **机制已由我们的 mt-knight 在 match-007 复盘时核实并落库**：`g.rules.getWarhead` 证据显示**部署（卧倒）的步兵主武器从 M60（15 伤）切换为 M60E（25 伤，+67%）**，且对 AP 武器还有额外的 `proneDamage=0.5` 减伤。也就是说"坐下"同时提高输出与生存（对坦克的穿甲火力尤其明显）。
 2. **执行层已经在用这条**：`threatValue` 对"连续 ≥2 次情报采样（约 3 秒）位置不变的敌方步兵"按 **1.6 倍**权重计入（plan-schema，T-022）。对手 AI 正是靠这一点在 match-006/007 用"一撮静止 E1"磨掉我方 9 辆灰熊——**同一个机制，我方从未主动使用过。**
 3. **本局的关联证据（我漏报的）**：我方步兵在 1:34 / 2:53–3:02 两个窗口的损失，全部是**站在塔线外被 E1 与 FV 交换**（1:34 损 E1×2、2:53–3:02 再损 E1×4，两窗合计 6 个 E1）；matches 016 我方整局**从未出现"部署状态"的自家步兵群**——`me.units` 里的 E1 只在移动/被动迎击中消耗，`reflex` 里也没有任何部署动作（`probe` 显示当前 API 面无 `deploy`/`prone`/`setStance` 暴露，说明这属于执行层尚未实现的能力，不是 plan 字段）。
-4. **因此正确的动作不是改 plan 参数，而是提 runtime 需求**：给执行层加一条"防守姿态下，步兵抵达集结点后自动 deploy（卧倒）"的反射。收益可直接量化——我方典型防守编队 6 个 E1 若全部部署，对 MTNK 的输出从 6×15 提到 6×25（+67%），对 JUMPJET 同理；且对 AP 的 `proneDamage=0.5` 让它们在 3:00 之前面对 FV/MTNK 骚扰时不再被单方面换掉（本局 1:34 那一窗正是这个形态）。
+4. **【事实更正，重要】这条反射已经实现，但不在本局用的 runtime 里**：`/Users/lukeliu/ds/ra2-commander/scripts/runtime.js` 的 **mtime = 2026-09-18 22:13:28**，而本局 `log.json`/`meta.json` 的 mtime = **22:01:58**（`runtimeVersion: rt-30428d6bd1`、`durationSec: 362`）——**部署反射是在本局结束后约 12 分钟才写进源码的**；其源码注释本身就写着 "Verified live via game.rules.getObject in match-016" 与 "A reflex of this shape was first proposed in match-003's runtime_issues and never implemented"。所以本局我方步兵是站着打完的（日志 0 条"步兵在集结点部署"），而我先前那句"属于尚未实现的能力、需要新提需求"是错的。该反射的形态：`ORD.DeploySelected: 10`、按引擎 `rules.deployer` 标志筛选（E1=true、E2=false，避免对动员兵发死指令）、用位置台账防"部署是 toggle"导致的站起-坐下抖动、且只在 `stance==='defend'` 且威胁为空时作用于集结点 6 格内。**它尚未在实战验证过——下一局是首次检验，我应专门盯它是否触发、以及触发后 E1 的存活率/交换比是否变化。**
+5. **量化收益**：我方典型防守编队 6 个 E1 若全部部署，对 MTNK 的输出从 6×15 提到 6×25（+67%），对 JUMPJET 同理；且对 AP 的 `proneDamage=0.5` 让它们在 3:00 之前面对 FV/MTNK 骚扰时不再被单方面换掉（本局 1:34 那一窗正是这个形态）。
 5. **与"塔线"体系的配合**：部署后不能移动，所以**必须坐在自家 GAPILL/NASAM 的掩护圈内**，不能部署在 (82–86,106–112) 走廊外——那正是本局 6 个 E1 白白损耗的位置。
 
 ## 结论
 
 **本局败因链（按时间）**：① 侦察犬预算（3 只）在固定走廊被吃光，2:04 才拿到敌基地布局；② 首波 2:51 虽然被塔线 2.02:1 吃掉，但**我方经济同时被打崩**（4 辆 CMIN、资金长期 0）；③ 4:21 的第二波 JUMPJET×6 混编击穿 NASAM 塔线，我方部队 4:30 归零；④ **`strongDef` 的 ATESLA 全程未落地**，MTNK/JUMPJET 无对位火力；⑤ 4:35–5:23 的 48 秒里 9 座建筑被清，5:36 建造厂倒、6:01 判负。
+
+---
+
+# 复盘：查打一体（recon-strike）改造 —— 让"实时判断"真的能指挥
+
+**触发**：用户指出"不能根据战场情况灵活调动单位进行实时作战；战术规则只是一部分功能，实时判断推理指挥才是关键"，并授权"多 agent 不合适就直接用主 agent，查打一体"。
+**结论先行**：问题不在"规则不够多"，而在**这条链从来没被闭合过**——执行层每 0.8 秒就在做实时判断（`army()`），但那是 31 条手写 if-then；agent 只能改阈值、看不到"某个单位此刻在做什么"、也无法表达条件动作，而且**任何动作下发后都没有回读**。本次改造补的是三个接口缺口。
+
+## 一、诊断（三处缺口，都有代码证据）
+
+| 缺口 | 证据 | 后果 |
+|---|---|---|
+| **指挥栅栏** | `C.apply` 实现是 `Object.keys(patch).filter(k => !(k in C.plan))` → 未知字段直接报错。16 局里 plan 字段几乎没变（21 个），reflex 却长到 31 条 | 只能调 ratio/min/count/distance/权重，**写不出"如果它分兵就抽 2 辆坦克"**；命令单向，没有回读 |
+| **节奏错配 15 倍** | 执行层 `every('army', 0.8)`（800ms 一个决策周期）vs 情报采样 12 秒 | match-016 首波我 2:51 预测 3:10–3:15 到达、实际 2:53 接敌；4:21–4:30 那决定全局的 9 秒在 12 秒网格上不可见 |
+| **没有战场态对象** | `C.intel()` 每次返回"当前时刻快照"，没有跨采样变化率 | 每轮都要从文本重新推演战局，推理长在记忆上，记忆一丢就翻车（3:31 那次乐观误判就是这个） |
+
+## 二、改了什么
+
+新增 3 个文件、改 1 个文件（共 +351 行；runtime.js 1053 → 1404 行）：
+- `ra2-commander/scripts/tactical-core.js`（211 行，新增）：**纯逻辑引擎**，不碰游戏对象。`read(ctx)` 产出结构化战场态（含 `trend` 跨采样变化率），`decide(st,cfg,mem)` 按 4 档出动作，每个动作自带 `verify` 谓词与 `fallback`。
+- `ra2-commander/scripts/tactical-core.test.js`（153 行，新增）：确定性测试台，合成战场态推演 6 个场景。
+- `ra2-commander/scripts/tactical-wiring.test.js`（165 行，新增）：接线测试，用假 game 驱动 runtime 里**内联副本**跑完整闭环。
+- `ra2-commander/scripts/patch-tactical.py`（262 行，新增）：把 core 内联进 runtime 并接线；幂等，且改完 core 重跑一次就能同步（避免手工维护两份）。
+- `ra2-commander/scripts/runtime.js`：`DEFAULT_PLAN` +5 字段（L29）、内联核心块（L102–307）、`tacCfg/tacRefresh/tacDo/tacticalTick`（L947–1035）、`tick` 挂载（L1263）、`C.tacRead/C.tacAct`（L1295/L1318）、宏逻辑仲裁 `tacHolding`（L642/L800）。
+- `ra2-commander/references/plan-schema.md`：新增 5 字段说明 + "查打一体接口"一节。
+
+**闭环怎么才算闭合**：`tacDo` 是唯一下发点（agent 来的和反射来的都走它），它同时写抑制窗口；下一次 `tacRefresh` 拿 `M.tacActions` 里每个动作的 `verify(st)` 回读，失败就按 `fallback` 降级并记 `M.tacFailed`。`C.tacRead().lastVerify` 把这个结果暴露给 agent——**这是 16 局以来第一次动作有回执**。
+
+**关键设计决定（有反例支撑）**：
+1. **占位点受两个上界约束**：`塔射程-1.5` 格 **且** `距首要威胁 ≥4` 格。只按射程外推的话，威胁在 18 格时占位点会落到离敌 2.8 格——那是"在塔的射程里"同时"在敌人的射程里"，等于用坦克换坦克。测试台第一次跑就暴露了这个（场景 2）。
+2. **破线用滞回而不是每轮重判**：`tacticalBreakRatio=0.45` + 20% 解除带。match-007 那 9 辆灰熊就是在阈值附近被反复盲重放磨掉的。
+3. **默认 `tacticalMode:false`**：不开则行为与改造前逐位一致，避免未经实战验证的反射直接改变下一局。
+4. **`verify` 只允许从传入的 `st` 取值，禁止引用 `read()` 的局部变量**——见下面这条真实 bug。
+
+## 三、验证（可复现）
+
+```
+cd ra2-commander/scripts
+node tactical-core.test.js     → 22 通过 / 0 失败
+node tactical-wiring.test.js   → 18 通过 / 0 失败
+python3 patch-tactical.py      → 幂等（重复执行只同步内联块）
+python3 -c "... evolve.plan_keys()" → 5 个 tactical 字段全在白名单里
+```
+- 纯核心 22 项：静默不发动作、engage 时占位在塔射程内且不贴敌、breach 时退守塔线而不是一路回基地、残血**只在塔掩护外才撤**、滞回两轮不翻转、每个动作都带 verify。
+- 接线 18 项：整份 runtime.js 能在无游戏环境下求值（抓引用错误）、内联块自洽、`tacticalTick` 真的下发了 `Attack(2)/AttackMove(4)`（**不是裸 `Move`**——裸 Move 会取消单位 AI，match-010/012 的矿车就是这样被弄瘫的）、抑制窗口生效、动作账本记录、**漂移后回读判失败并计数、失败后真的走降级路径**。
+- 页面装载：写入 `/tmp/ra2-cmd-analyst16.js` 用 CDP 桥求值，`localStorage['ra2cmd:runtimeVersion'] = rt-71e521101e`、`storedBytes=96005`、**`instErr=null`**（实际浏览器里无语法/求值错误）。
+
+## 四、失败与返工（诚实记录）
+
+1. **第一版核心有 bug，且是"静默成功"型**：`hold` 的 verify 引用了 `D.cfg.driftTiles`，而 `D` 上没有 `cfg` → 每次调用抛错 → `tacRefresh` 的 try/catch 把抛错当"通过" → **hold 的动作永远判成功**。接线测试的漂移场景抓到它（`tacFailed` 一直是 0）。修法：`st.cfg` 进战场态 + 明确禁止 verify 引用局部变量。**这个 bug 本身就是"为什么必须有回读测试"的最好论据**。
+2. **`const obj` 在 runtime 里已存在**，接线测试的探针重复声明导致 `SyntaxError`；为此把探针整体改成 IIFE 命名空间，不再往沙箱撒名字。
+3. 我最初写的接线测试太"宽容"（把单位扔到 (20,20) 就脱离了交战判定，导致验证根本没跑），改成"只挪 9 格"才真正测到。
+4. 过程中 `_id++` 的调试插桩让场景 2 的断言数字对不上（我先入为主以为是阈值问题，实际是测试自身的桩写错），多花了两轮——**教训：合成测试里"预期不符"要先怀疑桩，再怀疑被测逻辑**。
+
+## 五、残留风险（下一局必须盯）
+
+1. **整条链没有在真实对局里跑过一次**。`tacticalMode` 默认关闭，启用需要 promote v014。**建议下一局开启并专门盯三件事**：`tac[phase]` 日志是否按档位出现、`C.tacRead().lastVerify.failed` 是否常非零、抑制窗口是否与 `army()` 的迎击分支打架。
+2. **`withdraw` 没有 fallback**（只记一条 warn）——残血单位撤不动时没有第二方案。
+3. **`reinforce` 目前没有任何分支会生成它**，是预留动作（定义并测试了，但未接进 `decide`）。
+4. **`focus` 用 `ORD.Attack(2)` 而非强制集火**：本引擎没有"强制攻击某目标"的独立指令，`Attack` 是攻击地面位置，目标会动。
+5. **两套逻辑并存**：`decide()` 的战术判断与 `army()` 的宏观迎击在同一 tick 上都可能产生指令，靠 4 秒抑制窗口仲裁。抑制窗口过短（宏逻辑 0.8 秒覆盖）或过长（错过真正的防线告急）都会出问题——**这是本次改造最需要实战校准的参数**。
+6. `C.tacRead` 复用 `C.state()`，与 `army()` 每 0.8 秒的全量 `state()` 叠加，单位数大时有额外开销；当前 3 秒间隔下可接受。
+7. 启用建议写在 `matches/match-016/tactical-candidate.json`，promote 命令：
+   `python3 evolve.py promote --candidate <该文件> --reason "match-016 复盘：启用查打一体"`

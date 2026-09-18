@@ -1,0 +1,7 @@
+{
+  "tacticalMode": true,
+  "tacticalInterval": 3,
+  "tacticalMaxOrders": 3,
+  "tacticalSuppressSec": 4,
+  "tacticalBreakRatio": 0.45
+}

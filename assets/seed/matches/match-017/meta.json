@@ -1,0 +1,147 @@
+{
+  "matchId": "match-017",
+  "runtimeVersion": "rt-71e521101e",
+  "planVersion": "v014",
+  "result": "lost",
+  "durationSec": 695,
+  "me": "Player 1",
+  "side": "CA",
+  "enemies": [
+    "@@AI2@@"
+  ],
+  "starts": {
+    "Player 1": {
+      "x": 135,
+      "y": 80
+    },
+    "@@AI2@@": {
+      "x": 71,
+      "y": 118
+    }
+  },
+  "factions": {
+    "Player 1": "Confederation",
+    "@@AI2@@": "Americans"
+  },
+  "plan0": {
+    "stance": "defend",
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 2
+    },
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "leashRadius": 4,
+    "sortieMaxUnits": 4,
+    "minerEscort": 0,
+    "attackMinUnits": 10,
+    "retreatRatio": 0.35,
+    "defendRetreatRatio": 0.4,
+    "defendMinValue": 800,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "scout": true,
+    "repair": true,
+    "tacticalMode": true,
+    "tacticalInterval": 3,
+    "tacticalMaxOrders": 3,
+    "tacticalSuppressSec": 4,
+    "tacticalBreakRatio": 0.45
+  },
+  "planFinal": {
+    "stance": "defend",
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power",
+      "baseDef",
+      "baseDef"
+    ],
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 8,
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 3,
+      "aaVehicle": 2
+    },
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenses": {
+      "CTESLA": 2,
+      "MSAM": 2,
+      "CAPILL": 3
+    },
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "leashRadius": 4,
+    "sortieMaxUnits": 4,
+    "minerEscort": 0,
+    "attackMinUnits": 10,
+    "retreatRatio": 0.35,
+    "defendRetreatRatio": 0.4,
+    "defendMinValue": 800,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 45,
+    "siegeQuietSeconds": 10,
+    "scout": true,
+    "repair": true,
+    "tacticalMode": false,
+    "tacticalInterval": 3,
+    "tacticalMaxOrders": 3,
+    "tacticalSuppressSec": 4,
+    "tacticalBreakRatio": 0.45
+  },
+  "logCount": 293,
+  "snapshotCount": 66,
+  "logKinds": {
+    "start": 2,
+    "build": 23,
+    "error": 8,
+    "plan": 10,
+    "advice": 20,
+    "scout": 2,
+    "reflex": 51,
+    "intel": 25,
+    "prod": 5,
+    "alarm": 29,
+    "kill": 36,
+    "attack": 2,
+    "siege": 6,
+    "loss": 60,
+    "warn": 13,
+    "over": 1
+  }
+}

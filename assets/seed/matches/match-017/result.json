@@ -1,0 +1,9 @@
+{
+  "match": "match-017",
+  "result": "lost",
+  "durationSec": 695,
+  "planVersion": "v014",
+  "opponent": "ai-easy",
+  "notes": "v014首战,古巴CA,执行层两处P0(防御映射+SIDES表/查打一体TAC崩溃),被3辆MGTK射程压制磨死,终局29990:59610",
+  "recordedAt": "2026-09-18T23:25:35"
+}

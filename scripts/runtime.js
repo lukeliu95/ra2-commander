@@ -1259,6 +1259,10 @@ function ra2Runtime() {
     // income stayed at zero for the rest of the match and nothing could be rebuilt. Miners cost 1400 and there are
     // only six, so waiting out a camper is always cheaper than feeding one.
     function rearmIdleMiners(S) {
+      // Nothing to mine? Then an idle miner is not a bug and re-arming it is pointless. match-017 spun here eight
+      // times between 10:42 and 11:18 ("发现 1 辆矿车完全闲置…重新武装") after every refinery had been destroyed —
+      // the watchdog kept re-arming a harvester with no ore patch left to send it to.
+      if (!S.mine.some(o => o.rules.refinery)) return 0;
       const idle = S.mine.filter(o => o.rules.harvester).filter(o => {
         const uo = o.unitOrderTrait;
         return uo && uo.orders.length === 0 && (uo.tasks || []).length === 0;
@@ -1305,9 +1309,31 @@ function ra2Runtime() {
       }
       const av = M.av = avail();
       production(S, av);
+      // Whole-table self-check, deferred so it does not fire on buildings that are merely tech-gated. SIDES maps
+      // plan role names to engine building names and the defence system lives or dies on it: match-017 sat on zero
+      // static defences for 7:46 because the CA row pointed baseDef at NALASR, a Soviet building, and the defence
+      // loop skipped it silently, forever. The defence path now warns on its own, but the same trap applies to
+      // vehicleMix/infantryMix/buildOrder entries, so once the opening build is done (60s in) every role the plan
+      // actually references gets one check. tech/depot/strongDef are excluded: those are legitimately unavailable
+      // until a lab, a service depot or a radar exists, and warning about them would be noise, not signal.
+      if (!M.sideChecked && M.side && sec() >= 60) {
+        M.sideChecked = true;
+        const LATE = new Set(['tech', 'depot', 'strongDef']);
+        const roles = new Set([...C.plan.buildOrder, ...Object.keys(C.plan.vehicleMix || {}),
+                               ...Object.keys(C.plan.infantryMix || {}), ...Object.keys(C.plan.defenses || {})]);
+        const bad = [...roles].filter(r => !LATE.has(r) && M.side[r])
+          .filter(r => [].concat(M.side[r]).every(n => !av.has(n)));
+        if (bad.length) log('warn', `阵营表自检：${M.sideKey} 的 ${bad.map(r => `${r}(${[].concat(M.side[r]).join('/')})`).join('、')} 在开局 60 秒后仍不可造——方案里引用这些角色会静默失效（核 runtime.js 的 SIDES 表）`);
+      }
       if (every('intel', 1.5)) intelSample(S);
       if (every('army', 0.8)) army(S);
-      if (C.plan.tacticalMode && every('tactical', C.plan.tacticalInterval ?? 3)) tacticalTick(C.state());
+      // One bad hook must not cost the whole tick. match-017 ran the tactical core with an inlined-but-never-
+      // instantiated engine, so `TAC is not defined` threw every 3 seconds and everything below this line —
+      // siege, repair, retaliate — was skipped for that tick. Measured cost: siege ran at roughly 75% of its
+      // intended rate and repair/retaliate at about 83%, for a feature that was doing nothing at all.
+      if (C.plan.tacticalMode && every('tactical', C.plan.tacticalInterval ?? 3)) {
+        try { tacticalTick(C.state()); } catch (e) { if (every('tacErr', 30)) log('error', 'tacticalTick 异常（已隔离，不影响本 tick 其余反射）：' + e.message); }
+      }
       if (every('siege', 0.7)) siege(C.state());
       if (every('repair', 2)) repair(S);
       // Whoever is shooting at us gets shot back, buildings (defensive towers) included.

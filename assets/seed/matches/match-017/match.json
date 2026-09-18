@@ -1,0 +1,12 @@
+{
+  "matchId": "match-017",
+  "createdAt": "2026-09-18T23:05:25",
+  "opponent": "ai-easy",
+  "map": "岛屿之战 (2)",
+  "roles": [
+    "commander",
+    "analyst"
+  ],
+  "planVersion": "v014",
+  "runtimeVersion": "rt-71e521101e"
+}
