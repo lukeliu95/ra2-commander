@@ -1,0 +1,48 @@
+{
+  "version": "v009",
+  "parent": "v008",
+  "createdAt": "2026-09-18T12:21:00",
+  "reason": "复盘 match-009（v007 第 2 局、首胜，7:45，我方苏军 Arabs vs AI 苏军 Russians）。只改 1 个字段（本局赢，按'最多 2 个字段'原则取证据最硬的那个）：vehicleMix {tank:4, aaVehicle:1} -> {tank:4}（删掉 aaVehicle，注意是'省略该键'而不是写 0，否则会按 plan-schema 显式关闭 airSeen 反射）。理由分三层：(1) 对局直接证据——本局 v007 初始 plan 里带着 aaVehicle:1，指挥官 1:21 确认对手是苏军后把它删掉，此后全程载具产量 100% 给坦克、快照 units 里只有 HARV/DOG/E2/HTNK 四种、一辆 HTK 都没造，HTNK 峰值 19 辆；5:19 那个 3.56 倍兵力差（25 单位/16020 对敌方全部 15 单位/4500）就是这么堆出来的，而 5:40 转攻、7:45 取胜的胜负手正是这个兵力差（T-005 本局升级为确认）。若保留 aaVehicle:1，按 pickByMix 的权重语义约 20% 载具产能会变成 500 块的 HTK，5:19 大约只能有 13 辆犀牛而不是 17 辆。(2) 跨局计数——T-004 的 AA 部分早在 v005 就被判'支持 1 / 反对 3 -> 废弃'，本局再加一个反例成为 支持 1 / 反对 4；已观测的 7 局里 5 局敌方零空军（苏军 3/3、古巴 2/2），match-009 的 airSeen 全程 false。(3) 关键区分（本次新增，写进了 T-004 与对手档案苏军节）——aaDef 和 aaVehicle 这两个对冲不该同等对待：aaDef（NASAM 1000）必须预置，因为 production() 的资金饥饿快速通道只对 cost<=700 生效、反射来不及（T-027 的结论，match-007 实测 0 次排产）；而 aaVehicle 不需要预置，因为 runtime.js:177 的 'if (M.airSeen && P.vehicleMix.aaVehicle !== 0) mix.aaVehicle = max(mix.aaVehicle||0, 2)' 对权重是即时生效的，且载具产能连续、3:50 看到飞机再转产来得及。所以本次保留 defenses.aaDef:1 不动，只删 aaVehicle。残余风险已在 debrief 里标注：若下一局是盟军镜像，0:00 到看到飞机之间没有防空车（match-007 是 3:50 首见 JUMPJET），届时靠 airSeen 反射补齐。**本次明确不改的部分**：(a) defenses 保持 v008 的 {baseDef:3, aaDef:1, strongDef:1} —— 本局 1 座 TESLA + 2 座 NALASR + 1 座 NAFLAK 在 27 单位/5790 的大波面前零建筑损失，说明对陆战型苏军 strongDef:1 已经够用，反而反对再加码（T-017 追加意见）；v008 的 baseDef 2->3 是 match-008 古巴 C4 的证据，本局（苏军、无 C4）不构成对它的反驳，保留但标注仍未验证。(b) siegeAutoAttackUnits/siegeQuietSeconds 不改 —— 本局它们一次都没触发，根因是判据缺陷（siege() 用'全地图看不到敌方单位'当安静判据，而本平台无战争迷雾、敌方缩在家里的单位永远可见），改数值没有意义，已写进 runtime_issues #1 交主会话改代码。(c) minerEscort 保持 1 —— 本局 0 矿车损失、但零可观测效果，且发现实现与 T-026 提案不一致（护卫站在矿厂建筑坐标而不是矿区，runtime.js:513-524），在实现修正前这个字段无信息，既不该删也不该据此认为它有效（T-026 更新）。(d) targetRefineries/minersPerRefinery/maxMiners/maxFactories/infantryCap/leashRadius/retreatRatio/defendRetreatRatio/attackMinUnits 全部保持 —— 本局这组配置实测健康（4 矿厂 8 矿车、0 矿车损失、4:19 第 2 工厂落地、6 次拴绳 warn 全部正确）。(e) 本局新发现的核电站核爆（7:25 一次损失 3 辆 HTNK/2700）与拆家期 11 辆犀牛（9900）战损都无对应 plan 字段，已记为 T-032 + runtime_issues #2/#4。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 4,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 1,
+      "strongDef": 1
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 1,
+    "defendRetreatRatio": 0.4
+  }
+}

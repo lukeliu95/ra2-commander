@@ -1,0 +1,9 @@
+{
+  "match": "match-010",
+  "result": "lost",
+  "durationSec": 416,
+  "planVersion": "v009",
+  "opponent": "ai-easy",
+  "notes": "v009第2局负6:56，早期防空调整(aaDef1→2)有效歼灭JUMPJET速攻波(2.1:1)，但被随后的MGTK/SREF复合碾压波打崩；矿车永久闲置执行层bug主会话临场手动修正",
+  "recordedAt": "2026-09-18T12:37:38"
+}

@@ -83,7 +83,7 @@ function ra2Runtime() {
       // Cumulative battle tallies. Both real-time roles independently mis-added the exchange ratio in match-009
       // (reported 2.8:1, actually 1.76:1 — a 59% error) because `events` is a truncated rolling window and there
       // was no running total to read. Kept here rather than parsed back out of log strings.
-      costByName: {}, kills: {}, losses: {}, killValue: 0, lossValue: 0};
+      costByName: {}, kills: {}, losses: {}, killValue: 0, lossValue: 0, retreatedMiners: new Map()};
     const sec = () => g.getCurrentTick() / rate;
     const every = (key, s) => { const now = sec(); if (now - (M.lastTick[key] ?? -1e9) >= s) { M.lastTick[key] = now; return true; } return false; };
     // A role may map to candidates (e.g. country-specific radar); pick the one that is buildable or already owned.
@@ -394,6 +394,21 @@ function ra2Runtime() {
       const units = mine.filter(o => o.id !== M.scoutId || M.scouted);
       const myBuild = S.buildings.map(xy);
       const miners = S.mine.filter(o => o.rules.harvester);
+      // Miners the "exposed miner" reflex sent home never resumed mining on their own — an explicit Move order
+      // cancels the harvester AI for good in this engine, so they'd idle at base forever unless someone re-tasks
+      // them (match-010 caught 4/5 miners stuck this way, and a retroactive log check found the same reflex had
+      // fired — and never recovered from — 7 more times across match-005/007/008/009, unnoticed every time).
+      // Re-dispatch once healed and clear of danger, or after 40s regardless so they don't wait out a long siege.
+      for (const [id, info] of [...M.retreatedMiners]) {
+        const m = miners.find(o => o.id === id);
+        if (!m) { M.retreatedMiners.delete(id); continue; }
+        const safe = hp(m) >= 0.9 && !S.hostile.some(o => !o.isBuilding() && !o.rules.harvester && d2(xy(m), xy(o)) < 25);
+        if (!safe && now - info.t < 40) continue;
+        const spot = (M.oreTiles.length ? M.oreTiles.reduce((a, t) => d2(t, xy(m)) < d2(a, xy(m)) ? t : a) : null) || xy(m);
+        my.orderUnits([m.id], ORD.Move, spot.x, spot.y);
+        log('reflex', `矿车${safe ? '威胁解除' : '等待超时'}，重新派回矿区 @${spot.x},${spot.y}`);
+        M.retreatedMiners.delete(id);
+      }
       const rally = {x: Math.round(base.x + dir.x * (P.defenseDistance + 2)), y: Math.round(base.y + dir.y * (P.defenseDistance + 2))};
       // Fight next to our defenses: chasing threats far from towers lost the whole army twice in match-003.
       const towerObjs = S.buildings.filter(b => b.rules.isBaseDefense);
@@ -424,6 +439,7 @@ function ra2Runtime() {
       const exposedMiners = hurtMiners.filter(m => !threats.some(o => d2(xy(m), xy(o)) < 25));
       if (exposedMiners.length) {
         orderThrottled(exposedMiners, ORD.Move, base.x, base.y, 'minerHome', 8);
+        for (const m of exposedMiners) if (!M.retreatedMiners.has(m.id)) M.retreatedMiners.set(m.id, {t: now});
         if (every('minerHome', 10)) log('reflex', `矿车在防线外被打：撤回基地（${exposedMiners.length} 辆），部队不出防线`);
       }
       if (outside.length && every('outsideLeash', 15)) log('warn', `防线外有敌军在打我方建筑：${JSON.stringify(tally(outside.map(o => o.name)))}，超出拴绳距离 ${leash} 格未出兵（可调 leashRadius）`);
@@ -476,8 +492,12 @@ function ra2Runtime() {
         // 40% to 0% — a committed force that's already thin can get wiped between two samples with no
         // intermediate reading to catch. An absolute floor covers that: below defendMinValue, retreat regardless
         // of what the ratio says, since there's nothing left worth trading further.
+        // match-010: a fresh 8-E2 defense (720 value, zero losses so far) tripped the absolute floor at "100%"
+        // three times in the opening minutes purely because a small army is normal early on, not because anything
+        // was going wrong (we were winning those skirmishes outright). Require defendRatio < 1 — some actual loss
+        // this engagement — before the floor can fire, so it only backstops a real bad trade, not a small army.
         const defendRatio = M.defend && M.defend.value > 0 ? myValue / M.defend.value : 1;
-        if (!M.defendBroken && (defendRatio < (P.defendRetreatRatio ?? 0.4) || (myValue > 0 && myValue < (P.defendMinValue ?? 800)))) {
+        if (!M.defendBroken && (defendRatio < (P.defendRetreatRatio ?? 0.4) || (defendRatio < 1 && myValue > 0 && myValue < (P.defendMinValue ?? 800)))) {
           M.defendBroken = true;
           log('reflex', `防守交战只剩 ${Math.round(defendRatio * 100)}%（价值 ${myValue}）：撤回基地，不硬拼到全灭（可调 defendRetreatRatio/defendMinValue）`);
         }
