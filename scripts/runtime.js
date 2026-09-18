@@ -21,7 +21,7 @@ function ra2Runtime() {
     targetRefineries: 3, minersPerRefinery: 2, maxMiners: 7, maxFactories: 2,
     vehicleMix: {tank: 3, aaVehicle: 2}, infantryMix: {inf: 1}, infantryCap: 8,
     defenses: {baseDef: 2}, defenseDistance: 6, threatRadius: 14, leashRadius: 8, sortieMaxUnits: 4, minerEscort: 0,
-    attackMinUnits: 14, retreatRatio: 0.35, attackTarget: 'auto',
+    attackMinUnits: 14, retreatRatio: 0.35, defendRetreatRatio: 0.4, attackTarget: 'auto',
     siegeAutoAttackUnits: 8, siegeQuietSeconds: 10,
     scout: true, repair: true,
   };
@@ -79,7 +79,7 @@ function ra2Runtime() {
     const M = C.mem = {side: null, sideKey: null, enemyBuildings: new Map(), enemyTypes: new Map(), myIds: new Map(), enemyUnitIds: new Map(),
       armyHist: [], approach: null, alarm: false, airSeen: false, attack: null, scoutId: null, scouted: false, repairing: new Set(),
       lastOrder: new Map(), pendingPlace: 0, lastTick: {}, oreTiles: [], siegeTarget: null, siegeHit: new Map(), noArmySince: null,
-      av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null, stillTicks: new Map(), hoardSince: null, hoardWarned: 0};
+      av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null, stillTicks: new Map(), hoardSince: null, hoardWarned: 0, defend: null, defendBroken: false, airNearWarned: false};
     const sec = () => g.getCurrentTick() / rate;
     const every = (key, s) => { const now = sec(); if (now - (M.lastTick[key] ?? -1e9) >= s) { M.lastTick[key] = now; return true; } return false; };
     // A role may map to candidates (e.g. country-specific radar); pick the one that is buildable or already owned.
@@ -256,14 +256,20 @@ function ra2Runtime() {
           const spot = findSpot(rules.name, placementCenter(rules, S.buildings));
           if (spot) { my.placeBuilding(rules.name, spot.x, spot.y); log('build', `放置防御 ${rules.name} @${spot.x},${spot.y}`); M.pendingPlace = sec() + 0.8; }
         } else if (dq.status === ST.Idle && dq.currentSize === 0) {
-          // Alarm may fast-track cheap defenses only; expensive ones wait for half their cost in the bank.
+          // Enemy aircraft actually loitering near our buildings right now overrides the normal cost gate for
+          // AA specifically — match-007: NASAM costs 1000, always misses the <=700 alarm fast-track, so 7
+          // JUMPJET camped inside the base for 90s with zero air defense ever queued.
+          const airNear = S.hostile.some(o => isAir(o) && S.buildings.some(b => d2(xy(b), xy(o)) < (P.defenseDistance + P.leashRadius + 6) ** 2));
           for (const [role, n] of Object.entries(wantDefenses(P, av))) {
             const name = R(role);
             if ((counts[name] || 0) >= n || !av.has(name)) continue;
             const c = (game.rules.getObject(name, 2) || {}).cost || 0;
-            if ((pd.credits > 700 && pd.credits >= c * 0.5) || (M.alarm && c <= 700)) { my.queueForProduction(Q.Armory, name, 2, 1); log('build', `排产防御 ${name}（${c}，资金 ${pd.credits}）`); }
+            const aaUrgent = role === 'aaDef' && airNear && pd.credits >= 300;
+            if ((pd.credits > 700 && pd.credits >= c * 0.5) || (M.alarm && c <= 700) || aaUrgent) { my.queueForProduction(Q.Armory, name, 2, 1); log('build', `排产防御 ${name}（${c}，资金 ${pd.credits}${aaUrgent ? '，敌机在附近，绕过资金门槛' : ''}）`); }
             break;
           }
+          if (airNear && !M.airNearWarned) { M.airNearWarned = true; log('warn', '敌方飞行单位正在基地附近逗留：防空排产已绕过资金门槛'); }
+          else if (!airNear) M.airNearWarned = false;
         }
       }
       const harvs = S.mine.filter(o => o.rules.harvester).length;
@@ -437,15 +443,25 @@ function ra2Runtime() {
         // AttackMove order every 0.8s tick and cancel the in-progress attack — match-006 ground down 9 MTNK
         // this way against a stationary deployed-E1 blob while trading favorably at first contact.
         const pt = {x: Math.round(ptRaw.x / 2) * 2, y: Math.round(ptRaw.y / 2) * 2};
-        if (!M.alarm) { M.alarm = true; log('alarm', `基地/矿车受威胁：${JSON.stringify(tally(threats.map(o => o.name)))} 价值 ${threatValue} @${tc.x},${tc.y}，迎击点 ${pt.x},${pt.y}，我方部队价值 ${myValue}`); }
+        if (!M.alarm) { M.alarm = true; M.defend = {value: myValue, t: now}; M.defendBroken = false; log('alarm', `基地/矿车受威胁：${JSON.stringify(tally(threats.map(o => o.name)))} 价值 ${threatValue} @${tc.x},${tc.y}，迎击点 ${pt.x},${pt.y}，我方部队价值 ${myValue}`); }
+        else if (every('alarmRefresh', 10)) { log('alarm', `交战持续：${JSON.stringify(tally(threats.map(o => o.name)))} 价值 ${threatValue} @${tc.x},${tc.y}，我方剩余部队价值 ${myValue}`); }
         const deep = M.attack ? units.filter(o => dist(xy(o), enemyStart()) < 25) : [];
         const recallAll = threatValue > myValue * 0.25;
         const defenders = recallAll ? units : units.filter(o => !deep.includes(o));
         if (M.attack && recallAll && every('recall', 10)) { log('reflex', '家里被打且威胁较大：进攻部队回防'); M.attack = null; C.plan.stance = 'defend'; }
-        orderThrottled(defenders, ORD.AttackMove, pt.x, pt.y, 'def', 3);
+        // The defend branch used to fight to zero every time: threatValue's stationary-infantry weighting (T-022)
+        // fed the alarm log and the attack-recall check, but nothing ever told defenders to break off a losing
+        // fight (match-007: 3 MTNK + 5 E1 ground down to 0 against 5 stationary E1, killing only the E1s).
+        const defendRatio = M.defend && M.defend.value > 0 ? myValue / M.defend.value : 1;
+        if (!M.defendBroken && defendRatio < (P.defendRetreatRatio ?? 0.4)) {
+          M.defendBroken = true;
+          log('reflex', `防守交战只剩 ${Math.round(defendRatio * 100)}%：撤回基地，不硬拼到全灭（可调 defendRetreatRatio）`);
+        }
+        if (M.defendBroken) orderThrottled(defenders, ORD.Move, base.x, base.y, 'retreat', 2);
+        else orderThrottled(defenders, ORD.AttackMove, pt.x, pt.y, 'def', 3);
         return;
       }
-      if (M.alarm) { M.alarm = false; log('alarm', '威胁解除'); }
+      if (M.alarm) { M.alarm = false; M.defend = null; M.defendBroken = false; log('alarm', '威胁解除'); }
 
       if (P.stance === 'attack') {
         if (!M.attack) {
@@ -506,8 +522,11 @@ function ra2Runtime() {
       if (P.stance === 'defend' && !M.alarm) {
         if (enemyUnits.length === 0) {
           M.noArmySince ??= now;
-          if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits) {
-            C.apply({stance: 'attack', attackMinUnits: Math.min(P.attackMinUnits, armyUnits.length)}, `攻城规则：${P.siegeQuietSeconds} 秒看不到敌方部队，我方 ${armyUnits.length} 个单位，转入进攻拆建筑`, 'main');
+          // Require at least one vehicle before auto-committing: match-007 sent 8 bare E1 (MTNK still building)
+          // into an unscouted enemy base on unit count alone, while 5 enemy E1 were already closing on our own base.
+          const hasVehicle = armyUnits.some(o => o.isVehicle && o.isVehicle());
+          if (now - M.noArmySince >= P.siegeQuietSeconds && armyUnits.length >= P.siegeAutoAttackUnits && hasVehicle) {
+            C.apply({stance: 'attack', attackMinUnits: Math.min(P.attackMinUnits, armyUnits.length)}, `攻城规则：${P.siegeQuietSeconds} 秒看不到敌方部队，我方 ${armyUnits.length} 个单位（含载具），转入进攻拆建筑`, 'main');
             M.noArmySince = null;
           }
         } else M.noArmySince = null;

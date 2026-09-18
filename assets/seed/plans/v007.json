@@ -1,0 +1,49 @@
+{
+  "version": "v007",
+  "parent": "v006",
+  "createdAt": "2026-09-18T11:34:48",
+  "reason": "复盘 match-007（v006 首战负，5:22，本系列第二快）。本局败因是新出现的盟军'JUMPJET空降速攻'变体，不是经济数字问题，本次只改2个字段，都直接对应用户点名要核实的两个真实败因：(1) defenses.aaDef 0(缺省，靠airSeen反射临时补)->1（写进初始plan）：代码审计确认 wantDefenses()=={...P.defenses}（先展开整个 defenses 对象再判断），只要初始plan里有aaDef键，从0:00起就会被当成排产目标，不需要等airSeen触发；而NASAM造价1000，production()里资金饥饿保护的快速通道只对cost<=700生效（runtime.js:264），NASAM永远走不了这条快速通道，本局资金从1:11起持续紧张，3:50 airSeen正确触发后NASAM仍0次排产、0次建成，7架JUMPJET在基地内部驻留90秒零拦截，是4:58建造厂失守的直接原因。写进初始plan能让它在开局资金充裕的前60-90秒窗口就被排上，这和T-017'反装甲塔必须写进初始plan不能等中局补'是同一个教训的防空版（新增T-027）。(2) siegeAutoAttackUnits 8->14：本局1:07执行层反射把清一色8个E1（MTNK还在建79%）自动送去攻击敌方基地，同时敌方5E1正逼近我方基地，方向明显错误；指挥官1:19已手动改成14并全程沿用，本次只是把这个已经被临场验证过的修正固化进默认plan，避免下一局重演（新增T-028）。**明确说明本次没有解决、也无法通过plan字段解决的部分**：用户点名的'依然被坐下步兵摧毁'核心问题（3:16-3:41我方3MTNK+5E1/3150被磨到0只换5E1/900），代码审计确认T-022的1.6倍threatValue加权(runtime.js:405-406)只用于日志展示和recallAll(进攻部队回防判断)，从未用于防守分支的撤退/避战决策(runtime.js:430-446的threats分支无条件attack-move，没有任何战损比阈值)——这是运行时代码的决策链路缺口，不是权重数值选小了(1.6其实已经接近M60->M60E实测的1.667倍)，且新发现的proneDamage机制(AP武器对卧倒目标只有0.5倍伤害)说明真实劣势约是面值的3.3倍。这个问题没有现成plan字段能表达('见到N个卧倒步兵就不硬拼'这类新字段会被plan_keys()的unknown-field校验拒绝，DEFAULT_PLAN里没有对应键)，已经完整记录在runtime_issues.md #1/#2，需要主会话先改runtime.js，下一版plan才能真正验证效果，不能靠这次promote假装解决。主会话已在runtime.js里补上这个缺口：给防守交战加了退出条件（defendRetreatRatio，默认0.4，跌破就撤回基地不再硬拼）、NASAM等防空建筑在敌机实际逗留基地附近时绕开700资金门槛快速通道、siege自动出击要求至少含1个载具。(3) vehicleMix.aaVehicle 缺省->1：主会话追加，不是本局直接证据推出的，是跨局证据——五局里两局（match-006、match-007）对手都是盟军且都出现JUMPJET/防空需求，v005把aaVehicle从vehicleMix里整个拿掉是针对古巴/苏军'普遍没有空军'的过拟合，现在有两局证据支持盟军对手大概率带空中单位，恢复一个保守权重（不像v004的2那么高）作为对冲，不再赌'对手大概率没有空军'。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 4,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4,
+      "aaVehicle": 1
+    },
+    "defenses": {
+      "baseDef": 2,
+      "aaDef": 1,
+      "strongDef": 1
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 1,
+    "defendRetreatRatio": 0.4
+  }
+}

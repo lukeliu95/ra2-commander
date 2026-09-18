@@ -1,6 +1,6 @@
 {
   "_note": "跨局累积的单位规则参考（本平台魔改版），供每局开局/中局查阵营克制不用每次现场重查 game.rules。armor 枚举：0 none / 1 flak / 2 plate / 3 light / 4 medium / 5 heavy / 6 wood / 7 steel / 8 concrete / 9 special_1 / 10 special_2。rof 单位为帧（约 15 帧=1 秒）。'verified' 字段：'live'=某局用 game.rules.getObject/getWeapon 现场核实过；'derived'=从伤害/HP文字或战报反推、未直接读接口；'unknown'=完全没有数据，需要下次开一局趁 window.game 还在时用 game.rules.getObject(name,tier)/getWeapon(weaponName) 补上。",
-  "how_to_refresh": "对局进行中（window.__cmd/window.game 仍在内存时）执行：const r = game.rules.getObject('MGTK', 3); const w = game.rules.getWeapon(r.primary); —— 务必在游戏结束、返回主菜单之前做，页面一回主菜单 window.game 就没了（match-006 复盘时就因为这个原因丢失了全部现场数据，见 matches/match-006/runtime_issues.md）。",
+  "how_to_refresh": "对局进行中或刚判负、页面还没被导航回主菜单时执行：const g = window.__cmd.game || window.__cmd.g; const r = g.rules.getObject('MGTK', 3); const w = g.rules.getWeapon(r.primary); const wh = g.rules.getWarhead(w.warhead); wh.proneDamage 是卧倒步兵的二级减伤乘数（见 warhead_verses._prone_damage_note）。**match-007 修订**：全局变量 window.game 在判负后会被清空（match-006 就是这样丢的数据），但 window.__cmd.game / window.__cmd.g 这两个 runtime 内部引用即使判负后仍然可用——之后只要 window.__cmd 本身没丢（页面没被导航走），赛后也能补查。getObject(name, tier) 的 tier 参数要多试几个值（0-5），有的单位/建筑要固定在某个 tier 才有数据（例如 NASAM 只在 tier=2 有），tier 不对会报 'Missing rules for object'。",
   "warhead_verses": {
     "_order": ["none", "flak", "plate", "light", "medium", "heavy", "wood", "steel", "concrete", "special_1", "special_2"],
     "_source": "match-005 unit_rules.json（game.rules 现场核实）",
@@ -8,7 +8,9 @@
     "SA":           [1, 0.8, 0.7, 0.5, 0.25, 0.25, 0.75, 0.5, 0.25, 1, 1],
     "RifleBullet":  [1, 0.8, 0.3, 0.15, 0.05, 0.03, 0.01, 0.01, 0.01, 0.01, 1],
     "PrismWarhead": [2, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 2, 1],
-    "Super":        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    "Super":        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "_prone_damage_note": "match-007 现场用 g.rules.getWarhead(name).proneDamage 核实的新发现（g = window.__cmd.game，比 window.game 更抗页面状态丢失，见 how_to_refresh 补充）：这是一个独立于 armor 表的第二重乘数，只在目标是'卧倒/部署(prone)'的步兵时生效，衣甲乘数和 proneDamage 是连乘关系（伤害 = base × armor_mult[armor] × proneDamage，仅当目标 prone 时才乘 proneDamage，否则视为 1）。已核实：AP.proneDamage=0.5、SA.proneDamage≈0.7、RifleBullet.proneDamage=1、SSA.proneDamage=0.5、SAMWH.proneDamage=1、PrismWarhead.proneDamage=1。**这解释了 match-007 的核心败因**：MTNK 的 105mm(AP) 打卧倒 E1（none 装甲）实际伤害 = 65×0.25×0.5 = 8.125/发（DPS≈2.03，杀 1 个 125HP 的卧倒 E1 要 61.6 秒），而不是只算 armor 乘数时的 16.25/发（DPS≈4.06，30.8 秒）——卧倒步兵对 AP 武器的真实生存力是'看起来'的 2 倍，叠加 M60→M60E 的 1.667 倍输出提升，MTNK 对卧倒 E1 的真实交换比劣势约为面值估算的 3.3 倍（1.667×2），远超 T-022 目前用的 1.6 倍权重。SA 武器（我方 E1 自己）proneDamage 只有 0.7（惩罚较轻），所以步兵打步兵吃亏没有坦克打步兵吃亏那么夸张，但仍打七折。下次任何一局如果我方主力是 AP 武器载具（MTNK/LTNK 等），看到敌方步兵扎堆不动，都要按这个乘数重新估算，不能只套 1.6。",
+    "_verses_api_note": "g.rules.getWarhead(name).verses 在 match-007 现场返回的是空对象 {}（可能是懒加载或者数据结构和 match-005 时不同），装甲乘数表（AP/SA/RifleBullet/PrismWarhead 那四行）目前仍只有 match-005 的历史核实数据，SSA 和 SAMWH 两个新弹头的装甲乘数表暂缺，只核实了 proneDamage 字段。下次遇到 JUMPJET/NASAM 交战量大的对局，可以尝试其他 API（比如逐个 getObject 再查 primary 后对比伤害反推）来补全 SSA/SAMWH 的装甲乘数表。"
   },
   "units": {
     "E1": {"faction": "Allied", "kind": "infantry", "cost": 180, "hp": 125, "armor": "none", "speed": 10.24, "prereq": ["GAPILE"], "verified": "live",
@@ -25,10 +27,14 @@
       "weapon": {"name": "Vulcan2", "damage": 50, "rof": 26, "range": 5.5, "warhead": "SA"}},
     "ATESLA": {"faction": "Allied", "kind": "base defense (本平台=光棱塔)", "verified": "live",
       "weapon": {"name": "PrismShot", "damage": 120, "rof": 60, "range": 8, "warhead": "PrismWarhead"}},
+    "NASAM": {"faction": "Allied", "kind": "base defense (防空塔/爱国者)", "cost": 1000, "hp": 900, "armor": "steel", "speed": 0, "prereq": ["BARRACKS", "GACNST"], "techLevel": 4, "verified": "live",
+      "weapon": {"name": "RedEye2", "damage": 75, "rof": 55, "range": 12, "warhead": "SAMWH", "note": "射程 12 远超 ATESLA(8)/GAPILL(5.5)，对空火力很强，SAMWH 弹头的装甲乘数表未核实，但 proneDamage=1（对空中单位这个字段不适用）"},
+      "note": "match-007 现场核实（g.rules.getObject('NASAM',2)）。**前置只要 BARRACKS+GACNST，不需要雷达/科技建筑**，理论上开局第一时间就能造。但 cost 1000 > production() 里 Armory 队列的资金饥饿快速通道上限（`M.alarm && c<=700` 才能绕过 `credits>700` 门槛，NASAM 恒定过不了这个快速通道），只能走 `pd.credits>700 && pd.credits>=500` 这条正常门槛。match-007 全局资金持续紧张（多次触发'资金不足'保护），即使 3:50 `airSeen` 反射正确触发，NASAM 也从未进入建筑队列——本局全程 0 次排产、0 次建成，7 架 JUMPJET 在基地里逛了 90 秒无人能拦。见 T-017 同款教训（防空塔要写进初始 plan 的 defenses.aaDef，不能只靠 airSeen 反射临时加）。"},
     "FV": {"faction": "Allied", "kind": "vehicle (多功能步兵车)", "verified": "unknown",
       "note": "五局里反复出现（2:11–2:17 首见），从未现场核实 cost/hp/armor/weapon。战报显示对纯步兵有效、被 LTNK 之类重甲单位克制。下次开局趁 game.rules 可用时补。"},
-    "JUMPJET": {"faction": "Allied", "kind": "aircraft (空军)", "verified": "unknown",
-      "note": "match-006 首次大量出现（5:52 起 6 架规模化，档案原预期 7:12+ 零星），终局波仍有 6 架。全无硬数据（cost/hp/armor/weapon/speed 均未核实）。这是本局最大的情报盲区之一——不知道它的射程和伤害，没法判断防空塔覆盖是否够、要几座。下次盟军局务必现场核实。"},
+    "JUMPJET": {"faction": "Allied", "kind": "aircraft/空降步兵混合体（可长时间停驻在地面，像步兵一样'扎营'而不是持续巡航）", "cost": 600, "hp": 125, "armor": "special_2", "speed": 23.04, "prereq": ["GAPILE", "RADAR"], "techLevel": 3, "verified": "live",
+      "weapon": {"name": "20mm", "damage": 25, "rof": 30, "range": 5, "warhead": "SSA", "note": "rof 30 帧≈2 秒/发；SSA 弹头的装甲乘数表未核实，只知道 proneDamage=0.5（见 warhead_verses._prone_damage_note）"},
+      "note": "match-006 首次大量出现（5:52 起 6 架规模化，档案原预期 7:12+ 零星）；match-007 更早更猛：3:50 首见就是 3 架，5 分钟内滚到 7 架，且**长时间停驻在我方基地内部**（(71-73,116-120)，distToMyBase 1-3，持续超过 90 秒，4:39-5:22 期间没有一次撤离记录），像步兵一样一座座点名拆建筑，不是打了就走的空袭。cost/hp/armor/weapon 已在 match-007 现场用 window.__cmd.game.rules 核实（注意：普通的 window.game 在游戏结束/判负后会被清空，但 window.__cmd.game / window.__cmd.g 这两个内部引用即使判负后仍然可用，见 how_to_refresh 修订）。hp 只有 125（和 E1 一样脆），armor special_2 未知具体乘数，但**地面拴绳/迎击点机制对它完全不生效**——它不需要沿地面路径接近，可以直接出现在基地纵深，是本局最大的执行层空白（见 runtime_issues.md）。"},
     "MGTK": {"faction": "Allied", "kind": "vehicle，疑似'镜像坦克'（uiName 猜测，未核实）", "verified": "unknown",
       "note": "match-006 首次出现（7:06 首见，终局波 3 辆），档案完全没有记录，连中文名都是猜的。cost/hp/armor/weapon 全部未知。"},
     "SREF": {"faction": "Allied", "kind": "vehicle/infantry，未知类型", "verified": "unknown",
@@ -52,8 +58,8 @@
     "DOG": {"faction": "Soviet(NA)", "kind": "infantry (军犬)", "verified": "unknown"}
   },
   "coverage_summary": {
-    "fully_verified_live": ["E1(含卧倒态)", "MTNK", "CMIN", "GAPILL", "ATESLA", "LTNK", "GHOST2", "PLA", "CHAR"],
-    "unknown_high_priority": ["SREF（match-006 拆家主凶）", "JUMPJET（match-006 空军主力，五局最大情报盲区）", "MGTK", "FV", "HTNK", "V3", "APOC", "HTK", "E2"],
-    "note": "优先级建议：下一局如果再遇到盟军且出现 JUMPJET/MGTK/SREF，指挥官/情报分析员应在游戏仍在进行、window.game 可用时主动跑一次 game.rules.getObject(name, tier) 和 getWeapon()，把结果原样记进本文件（不要等复盘时才想起来，复盘时页面可能已经回到主菜单，见 match-006 的教训）。"
+    "fully_verified_live": ["E1(含卧倒态)", "MTNK", "CMIN", "GAPILL", "ATESLA", "LTNK", "GHOST2", "PLA", "CHAR", "JUMPJET（match-007 补全）", "NASAM（match-007 补全）"],
+    "unknown_high_priority": ["SREF（match-006 拆家主凶）", "MGTK（match-006/007 都出现但两局都没能查到 rules）", "FV（match-007 尝试 getObject 各 tier 均报 Missing rules，可能是引擎懒加载导致——只有单位真正出现在视野里 rules 才会被加载，下次要在 FV 还存活、刚发现的那一刻立刻查，不要等复盘）", "HTNK", "V3", "APOC", "HTK", "E2"],
+    "note": "优先级建议：下一局如果再遇到盟军且出现 MGTK/SREF/FV，指挥官/情报分析员应在**单位刚被发现、仍在视野里存活**的那一刻立刻跑 game.rules.getObject(name, tier)（tier 0-5 都试）和 getWeapon()（用 window.__cmd.game || window.__cmd.g，不要用 window.game，见 how_to_refresh），不要等复盘——match-007 尝试补查 FV/MGTK/SREF 时全部返回 'Missing rules for object'，推测是引擎只为出现过的单位懒加载 rules、且可能在单位死亡/离开视野后又被回收，复盘时（哪怕 window.__cmd 还在）也可能查不到了。JUMPJET/NASAM 这次能查到，可能是因为它们判负时仍然存活/在场。"
   }
 }
