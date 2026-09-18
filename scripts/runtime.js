@@ -83,7 +83,11 @@ function ra2Runtime() {
       // Cumulative battle tallies. Both real-time roles independently mis-added the exchange ratio in match-009
       // (reported 2.8:1, actually 1.76:1 — a 59% error) because `events` is a truncated rolling window and there
       // was no running total to read. Kept here rather than parsed back out of log strings.
-      costByName: {}, kills: {}, losses: {}, killValue: 0, lossValue: 0, retreatedMiners: new Map()};
+      costByName: {}, kills: {}, losses: {}, killValue: 0, lossValue: 0, retreatedMiners: new Map(),
+      // Retaliation bookkeeping: last seen health fraction per own object. A drop between samples means we are
+      // being shot at right now — healthTrait carries no last-attacker field, so the shooter is attributed by
+      // proximity. `retaliating` throttles repeat orders per (unit, target) pair.
+      lastHp: new Map(), retaliating: new Map(), finishing: false};
     const sec = () => g.getCurrentTick() / rate;
     const every = (key, s) => { const now = sec(); if (now - (M.lastTick[key] ?? -1e9) >= s) { M.lastTick[key] = now; return true; } return false; };
     // A role may map to candidates (e.g. country-specific radar); pick the one that is buildable or already owned.
@@ -375,7 +379,13 @@ function ra2Runtime() {
       if (Array.isArray(T)) return {x: T[0], y: T[1]};
       const known = [...M.enemyBuildings.values()];
       if (!known.length) return enemyStart();
-      const pri = n => /CNST/.test(n) ? 0 : /POWR|NRCT/.test(n) ? 1 : /PILL|LASR|TSLA|TESLA|SAM|FLAK|GCAN|PRISM/.test(n) ? 2 : /WEAP|PILE|HAND|AIRC|RADR|TECH/.test(n) ? 3 : /REFN/.test(n) ? 4 : 5;
+      // Order by how close each building is to actually ending the match, not by how annoying it is. match-012
+      // pinned the defeat condition down by observation: at 23:26 the enemy still held GAPILE + GAREFN×3 + GADEPT
+      // and had NOT lost; the instant the last GAPILE fell at 23:30 it was defeated. So the check counts the
+      // production set (barracks / war factory / airforce HQ / tech lab); refineries, repair depots and surviving
+      // defences count for nothing. Razing power plants and pillboxes first burned 30 seconds there (22:29-22:59)
+      // for no progress. Production now sits right behind the construction yard, the reactor stays last.
+      const pri = n => /NRCT|NUKE/.test(n) ? 6 : /CNST/.test(n) ? 0 : /WEAP|PILE|HAND|AIRC|RADR|TECH/.test(n) ? 1 : /POWR/.test(n) ? 2 : /PILL|LASR|TSLA|TESLA|SAM|FLAK|GCAN|PRISM/.test(n) ? 3 : /REFN/.test(n) ? 4 : 5;
       known.sort((a, b) => pri(a.name) - pri(b.name) || d2(a, base) - d2(b, base));
       return {x: known[0].x, y: known[0].y};
     }
@@ -405,8 +415,17 @@ function ra2Runtime() {
         const safe = hp(m) >= 0.9 && !S.hostile.some(o => !o.isBuilding() && !o.rules.harvester && d2(xy(m), xy(o)) < 25);
         if (!safe && now - info.t < 40) continue;
         const spot = (M.oreTiles.length ? M.oreTiles.reduce((a, t) => d2(t, xy(m)) < d2(a, xy(m)) ? t : a) : null) || xy(m);
-        my.orderUnits([m.id], ORD.Move, spot.x, spot.y);
-        log('reflex', `矿车${safe ? '威胁解除' : '等待超时'}，重新派回矿区 @${spot.x},${spot.y}`);
+        // Re-arm the engine's own gathering AI, do NOT issue another Move. match-010's fix re-dispatched with
+        // ORD.Move — the very order that cancels the harvester AI — so the miner travelled to the patch and then
+        // sat there with zero orders and zero tasks, mining nothing; match-012 ended with six harvesters idle,
+        // credits pinned at 0, and the retreat reflex re-breaking them every time a JUMPJET raided the patch
+        // (17:13/17:42/18:25/18:53 all fired "矿车在防线外被打"). harvesterTrait.queueAutoGatherAfterOwnershipSettles(
+        // unit, game) is the engine's own re-arm path; verified live in match-012 that it restores an idle
+        // harvester (ore 0->3, tasks 0->1). Move stays only as a fallback if that call ever fails.
+        let rearmed = false;
+        try { m.harvesterTrait.queueAutoGatherAfterOwnershipSettles(m, game); rearmed = true; } catch (e) {}
+        if (!rearmed) my.orderUnits([m.id], ORD.Move, spot.x, spot.y);
+        log('reflex', `矿车${safe ? '威胁解除' : '等待超时'}，重新派回矿区 @${spot.x},${spot.y}${rearmed ? '（原生 gather 重武装）' : '（Move 兜底）'}`);
         M.retreatedMiners.delete(id);
       }
       const rally = {x: Math.round(base.x + dir.x * (P.defenseDistance + 2)), y: Math.round(base.y + dir.y * (P.defenseDistance + 2))};
@@ -519,11 +538,30 @@ function ra2Runtime() {
           }
         }
         const A = M.attack;
-        for (const u of units) if (!A.ids.has(u.id) && d2(xy(u), rally) < 100) A.ids.add(u.id);
+        // Finishing mode. Once the enemy has no field army left nothing can punish a full commitment, and the
+        // slowest thing becomes our own caution: in match-012 the army retreated at 35% and then spent fifteen
+        // minutes rebuilding while the base it had already breached sat there. The stated objective is to raze
+        // every building quickly, so while the enemy has no troops in the field every unit joins the push and
+        // the auto-retreat floor drops sharply (0.35 -> 0.14). The floor is not removed: defensive towers still
+        // cost real units, and losing the whole group is slower than finishing with the ones we have.
+        const enemyField = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester && dist(xy(o), enemyStart()) > 15);
+        // NOT `enemyField.length === 0`. A strict emptiness test made this fire almost never — in match-012 one
+        // 600-credit JUMPJET was enough to switch finishing mode off for the entire 12:30-13:33 window, so the
+        // aggressive retreat floor never actually applied. What matters is that the enemy has no force capable
+        // of punishing a commitment, not that the map is literally free of hostile units (that is the same
+        // "one stray unit disables the whole reflex" trap the siege judge fell into in match-009).
+        const enemyFieldValue = enemyField.reduce((s, o) => s + cost(o), 0);
+        const finishing = enemyFieldValue < 1500;
+        if (finishing !== M.finishing) { M.finishing = finishing; if (finishing) log('attack', `敌方野战力量仅 ${enemyFieldValue}：进入清场模式（全军加入攻势，撤退下限降到 14%）`); }
+        for (const u of units) if (!A.ids.has(u.id) && (finishing || d2(xy(u), rally) < 100)) A.ids.add(u.id);
         orderThrottled(units.filter(u => !A.ids.has(u.id)), ORD.AttackMove, rally.x, rally.y, 'rally', 6);
         const gv = units.filter(u => A.ids.has(u.id)).reduce((s, o) => s + cost(o), 0);
-        if (gv < A.value * P.retreatRatio) {
-          log('reflex', `进攻部队只剩 ${Math.round(gv / A.value * 100)}%：自动撤退并转为防守`);
+        // Absolute floor, not a multiplier of the base. v011 already sets retreatRatio to 0.14, so a 0.4
+        // multiplier would double-apply it down to 0.056 — effectively never retreating, which risks losing the
+        // entire group and is slower than finishing with the units we have.
+        const retreatFloor = finishing ? Math.min(P.retreatRatio, 0.14) : P.retreatRatio;
+        if (gv < A.value * retreatFloor) {
+          log('reflex', `进攻部队只剩 ${Math.round(gv / A.value * 100)}%（下限 ${Math.round(retreatFloor * 100)}%）：自动撤退并转为防守`);
           M.attack = null; C.plan.stance = 'defend';
           orderThrottled(units, ORD.Move, rally.x, rally.y, 'retreat', 1);
           return;
@@ -572,7 +610,13 @@ function ra2Runtime() {
     // match-009 lost 3 HTNK (2700) in a single tick that way, the largest single loss of the match. Demote it to
     // last: by the time we reach it the enemy is finished anyway, so hitting it early buys nothing but our tanks.
     const isNuke = b => !!(b.rules.nuclear || /NRCT|NUKE/.test(b.name));
-    const siegeRank = b => isNuke(b) ? 6 : b.rules.constructionYard ? 0 : (b.rules.power > 0 ? 1 : b.rules.isBaseDefense ? 2 : /WEAP|PILE|HAND|AIRC|RADR|TECH|YARD/.test(b.name) ? 3 : b.rules.refinery ? 4 : 5);
+    const siegeRank = b => isNuke(b) ? 6
+      : b.rules.constructionYard ? 0
+      : /WEAP|PILE|HAND|AIRC|RADR|TECH/.test(b.name) ? 1
+      : b.rules.power > 0 ? 2
+      : b.rules.isBaseDefense ? 3
+      : b.rules.refinery ? 4
+      : 5;
     function siege(S) {
       const P = C.plan, now = sec();
       const armyUnits = S.mine.filter(isCombat).filter(o => o.id !== M.scoutId || M.scouted);
@@ -611,22 +655,34 @@ function ra2Runtime() {
       if (!group.length) return;
       const near = enemyUnits.filter(e => group.some(u => d2(xy(u), xy(e)) < 144));
       if (near.length) {
-        if (M.siegeTarget) { log('siege', '附近出现敌军，暂停拆建筑，先打部队'); M.siegeTarget = null; }
-        // match-011: a single 56%-hp FV parked 9 tiles away held the siege off from 6:09 to 8:43 while all 16 units
-        // of the strike group sat idle inside the enemy base — AttackMove had already reached its point, so nothing
-        // ever engaged the blocker. When the blockers are small next to the group, attack the nearest one directly.
         const gv = group.reduce((s, o) => s + cost(o), 0), nv = near.reduce((s, o) => s + cost(o), 0);
-        if (nv <= gv * 0.25) {
-          const gc = centroid(group);
-          const tgt = near.reduce((a, o) => d2(xy(o), gc) < d2(xy(a), gc) ? o : a);
-          const strikers = group.filter(u => { const h = M.siegeHit.get(u.id); return !h || h.id !== tgt.id || now - h.t > 6; });
-          if (strikers.length) {
-            my.orderUnits(strikers.map(u => u.id), ORD.Attack, tgt.id);
-            for (const u of strikers) { M.siegeHit.set(u.id, {id: tgt.id, t: now}); M.lastOrder.set(u.id, {k: 'siege:' + tgt.id, t: now}); }
-            if (every('siegeClear', 10)) log('siege', `拆建筑被 ${JSON.stringify(tally(near.map(o => o.name)))}（价值 ${nv}，不到我方 ${gv} 的 25%）挡住：全组直接攻击 ${tgt.name} @${xy(tgt).x},${xy(tgt).y}`);
+        // Trivial resistance must not drag a whole strike group off its buildings. match-012: a single 180-credit
+        // E1 — and separately a 600-credit FV — pulled 8-11 units off the target six separate times, and that is
+        // the direct reason three offensives failed to finish a base whose construction yard had already fallen.
+        // Anything worth under 15% of the group is now ignored outright and the razing continues; if it actually
+        // shoots at us the retaliation reflex sends the nearest units to answer it, so ignoring costs nothing.
+        if (nv <= gv * 0.15) {
+          if (every('siegeIgnore', 12)) log('siege', `拆建筑被 ${JSON.stringify(tally(near.map(o => o.name)))}（价值 ${nv} < 我方 ${gv} 的 15%）轻微骚扰：不理会，继续拆`);
+        } else {
+          if (M.siegeTarget) { log('siege', '附近出现敌军，暂停拆建筑，先打部队'); M.siegeTarget = null; }
+          // match-011: a single 56%-hp FV parked 9 tiles away held the siege off from 6:09 to 8:43 while all 16
+          // units of the strike group sat idle — AttackMove had already reached its point, so nothing ever
+          // engaged the blocker. Blockers too big to ignore but still small next to the group are attacked
+          // directly; finishing mode tolerates more before pausing (0.60 vs 0.25) because with no enemy field
+          // army there is nothing behind them to punish us.
+          const tol = M.finishing ? 0.6 : 0.25;
+          if (nv <= gv * tol) {
+            const gc = centroid(group);
+            const tgt = near.reduce((a, o) => d2(xy(o), gc) < d2(xy(a), gc) ? o : a);
+            const strikers = group.filter(u => { const h = M.siegeHit.get(u.id); return !h || h.id !== tgt.id || now - h.t > 6; });
+            if (strikers.length) {
+              my.orderUnits(strikers.map(u => u.id), ORD.Attack, tgt.id);
+              for (const u of strikers) { M.siegeHit.set(u.id, {id: tgt.id, t: now}); M.lastOrder.set(u.id, {k: 'siege:' + tgt.id, t: now}); }
+              if (every('siegeClear', 10)) log('siege', `拆建筑被 ${JSON.stringify(tally(near.map(o => o.name)))}（价值 ${nv}，不到我方 ${gv} 的 ${Math.round(tol * 100)}%）挡住：全组直接攻击 ${tgt.name} @${xy(tgt).x},${xy(tgt).y}`);
+            }
           }
+          return;
         }
-        return;
       }
       const candidates = S.hostile.filter(o => o.isBuilding());
       if (!candidates.length) return;
@@ -666,6 +722,59 @@ function ra2Runtime() {
       C.rec.snapshots.push(snap);
     }
 
+    // Retaliation: whoever shoots us gets shot back — buildings included. The army branch already reacts to enemy
+    // *units* near our base, but a defensive tower (GAPILL / ATESLA / PRISM) shelling our units or buildings was
+    // never a threat candidate, so nothing ever shot back at it (match-012: the 7:24 counter-attack was broken by
+    // the southern pillbox cluster while those towers kept firing unanswered). healthTrait exposes no
+    // last-attacker field, so attribution is by proximity: when one of our objects loses health between samples,
+    // any visible hostile within weapon range of it is a candidate and the nearest is attacked. The responding
+    // squad is limited to our units already within 14 tiles of that attacker, so this can never become a long
+    // charge out of tower cover — it only ever makes units that are already in the fight shoot back.
+    const RETALIATE_R = 12, RETALIATE_SQUAD_R = 14;
+    function retaliate(S) {
+      const now = sec();
+      const victims = [];
+      for (const o of S.mine) {
+        const h = hp(o);
+        const prev = M.lastHp.get(o.id);
+        M.lastHp.set(o.id, h);
+        if (prev === undefined || h >= prev - 1e-9) continue;
+        victims.push(o);
+      }
+      if (!victims.length) return;
+      const hostiles = S.hostile.filter(o => !isMissile(o));
+      const myUnits = S.mine.filter(isCombat).filter(o => o.id !== M.scoutId || M.scouted);
+      if (!hostiles.length || !myUnits.length) return;
+      for (const v of victims) {
+        const vp = xy(v);
+        const near = hostiles.filter(e => d2(xy(e), vp) < RETALIATE_R ** 2);
+        if (!near.length) continue;
+        const tgt = near.reduce((a, e) => (d2(xy(e), vp) < d2(xy(a), vp) ? e : a));
+        const key = 'retaliate:' + tgt.id;
+        const squad = myUnits
+          .filter(u => d2(xy(u), xy(tgt)) < RETALIATE_SQUAD_R ** 2)
+          .filter(u => { const lo = M.retaliating.get(u.id); return !lo || lo.k !== key || now - lo.t > 4; });
+        if (!squad.length) continue;
+        my.orderUnits(squad.map(u => u.id), ORD.Attack, tgt.id);
+        for (const u of squad) M.retaliating.set(u.id, {k: key, t: now});
+        if (every('retaliateLog', 8)) log('reflex', `反击：${v.name} 正在挨打，就近 ${squad.length} 个单位攻击 ${tgt.name}（${tgt.isBuilding() ? '建筑' : '部队'}）@${xy(tgt).x},${xy(tgt).y}`);
+      }
+    }
+
+    // Any explicit order cancels the harvester AI in this engine; re-arm anything that is fully idle. Verified
+    // live in match-012 (ore 0->3, tasks 0->1 on the re-armed unit). Logged once per recovery so a flatlining
+    // economy leaves a trace instead of only showing up as "credits are always 0".
+    function rearmIdleMiners(S) {
+      const idle = S.mine.filter(o => o.rules.harvester).filter(o => {
+        const uo = o.unitOrderTrait;
+        return uo && uo.orders.length === 0 && (uo.tasks || []).length === 0;
+      });
+      let n = 0;
+      for (const m of idle) { try { m.harvesterTrait.queueAutoGatherAfterOwnershipSettles(m, game); n++; } catch (e) {} }
+      if (n) log('reflex', `发现 ${n} 辆矿车完全闲置（无指令无任务），用原生 gather 重新武装（资金 ${g.getPlayerData(ME).credits}）`);
+      return n;
+    }
+
     function tick() {
       if (C.over) return;
       if (g.isPlayerDefeated(ME) || enemies.every(p => g.isPlayerDefeated(p))) {
@@ -700,6 +809,13 @@ function ra2Runtime() {
       if (every('army', 0.8)) army(S);
       if (every('siege', 0.7)) siege(C.state());
       if (every('repair', 2)) repair(S);
+      // Whoever is shooting at us gets shot back, buildings (defensive towers) included.
+      if (every('retaliate', 2)) retaliate(S);
+      // Last-resort harvester watchdog. Any explicit order (Move, including the retreat reflex) cancels the
+      // harvester AI for good in this engine, and match-010/012 both showed the economy silently flatlining
+      // because of it. Anything sitting with no orders AND no tasks is not mining: hand it back to the engine's
+      // own re-arm. Cheap, idempotent, and only ever touches genuinely idle harvesters.
+      if (every('minerWatchdog', 5)) rearmIdleMiners(S);
       if (every('record', 10)) record();
     }
 

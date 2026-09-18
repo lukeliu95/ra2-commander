@@ -1,0 +1,48 @@
+{
+  "version": "v010",
+  "parent": "v009",
+  "createdAt": "2026-09-18T14:03:32",
+  "reason": "复盘 match-011（v009 第 2 局、胜 10:21，我方苏军 Arabs vs AI 盟军 British，出生点/阵营/开局秒表与 match-010 完全相同，结果由负转胜）。本局赢了，按'最多 2 个字段'只改证据最硬的两处，都对准本局用时 10:21 里可由方案层缩短的部分。(1) defenses.aaDef 1→2（T-027 支持 4，盟军 2/2 局都需要第 2 座 NAFLAK）：match-011 指挥官 1:32 决策、2:14 落地把 aaDef 提到 2，NAFLAK#2 2:19 排产（资金 1106）、2:29 落地，只比 2:59 的 6 架 JUMPJET 混编首波早 30 秒——这 30 秒的余量完全建立在指挥循环 42 秒延迟没有再多拖一轮上；match-010 同一决策 3:53 才落地，首波打了 65 秒、TESLA 阵亡。三波 27 架 JUMPJET 全部在 NAFLAK×2+HTK×2+TESLA+3 NALASR 前被歼，首波 30 秒打完，防御建筑只丢 1 座 NALASR。预置到 2 还有一个时序收益：NAFLAK#2 会在雷达落地前 Armory 队列空闲的 1:01–2:20 窗口排产（资金 >700 门槛），不再与 2:24 之后才可造的 TESLA 抢同一笔钱——本局 TESLA#1 3:27 才落地（match-010 是 2:26），正是 2:19 NAFLAK#2 与 2:24 TESLA 同时分资金 0 的结果。代价：苏军/古巴局多 1000（3/3 苏军局、2/2 古巴局零空军，T-004 AA 部分已废弃），但 aaDef 是'必须预置、反射来不及'的那一类（T-027），而非盟军局指挥官在 0:53–1:22 确认阵营的同一轮 apply 降回 1 即可由 T-014 对账取消退款（match-005/008 的 T-020 apply 就在这个时间点），风险方向不对称：默认高、发现后降，比默认低、发现后追可靠。盟军是 11 局里最常见的对手（6/11），且最近 2 局盟军首波都在 2:59–3:02 直接混编 6 架 JUMPJET。(2) targetRefineries 4→3（T-013 支持 4）：第 4 座矿厂由 targetRefineries 对账排产（runtime.js:242）没有资金门槛，本局两次在错误时机排产——4:10 资金 101（首波刚打完、部队只剩 990、第二波 4:29 就到）触发资金饥饿反射暂停载具排产，指挥官 4:41 降到 3 取消时进度已 75%（退款 1500，但 40 秒建筑队列白扔）；7:21 恢复到 4 后又在资金 640 时排产，7:27/8:10/8:18 三次资金饥饿反射正好卡在攻城最需要 HTNK 的时候。第 4 座矿厂 8:51 才落地、8 矿车 9:02 才凑齐，对 5:40 出发、9:15 拆掉建造厂的结果零贡献。match-010 同样 targetRefineries 4 从未达成；match-004 5:14 在资金 0 排第 4 矿厂也是同一类事故（T-013）。buildOrder 本身已含 3 个 refinery，改 3 只是去掉这条无门槛的自动补建；第 4 座矿厂由指挥官在'敌方 field 为 0 且资金 ≥1500 且不在攻城收尾'时手动加（match-009 4 矿厂 8 矿车健康的样本是苏军长局、且在无威胁窗口落地，与 T-016 不冲突）。**本次明确不改**：strongDef 保持 1（本局第 2 座 TESLA 5:19 排产后 MGTK/SREF 整局未出现，两座塔没打过重甲，T-017 加码证据仍不足）；infantryCap 保持 8（攻城阶段 E2 喂碉堡是转攻后的时机问题，写入 T-034 由指挥官在转攻同轮降到 0，plan 层没有分阶段字段）；siegeAutoAttackUnits 14 保持（本局 5:39 第一次正确自触发，且 12 会在 5:12 第三波进场时把 13 单位送出门）；attackTarget 保持 auto（8:35 改坐标的效果无法归因，见 runtime_issues #1）。攻城 6:09–9:00 停滞是执行层 siege 判据缺陷（已修 rt-579f6a23dc，待下一局验证），不在方案层处理。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 3,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 2,
+      "strongDef": 1
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 1,
+    "defendRetreatRatio": 0.4
+  }
+}
