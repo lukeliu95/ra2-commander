@@ -73,12 +73,17 @@ python3 <skill>/scripts/evolve.py new-match --opponent ai-easy --map "岛屿之�
 落到这个项目上有两个用得上、且都**不需要它生成决策**的形态：
 
 - **赛后**：用 `score`/`boolean` 给本局的决策打分、判定"某条调整是否印证了某条战术"。这是最直接的用法。
-- **赛中**（可选）**：由别的模型先把候选动作生成出来（例如"现在出击 / 继续守 / 补塔"），再把候选喂给
-  `jev` 用 `choice` 选一个。它只做挑选，不做生成——所以它当"判断器"需要另一侧提供候选。
+- ~~**赛中**（可选）：由别的模型先出候选动作，再让 `jev` 用 `choice` 挑一个。~~
+  **已实测否定，不要再试**：拿四个真实历史出击决策回放（两次惨败、一次正确忍住、一次赢下整局），
+  `jev` 四种全判错且方向相反——两次惨败都主张打、唯一打赢的那次主张守；把射程等关键要素直接喂给它之后
+  答案反而更一致（全说打）。完整数据、方法与处置见 **`scripts/jev-verdict.md`**。
 
-调用壳：`scripts/score_with_jev.py`（走 Vercel AI Gateway，key 从项目根的 `.env` 读 `AI_GATEWAY_API_KEY`，
-脚本不打印密钥）。注意 `--list-models` 与 `--prompt` 走的是**两道不同的门**：前者成功只证明鉴权有效，
+调用壳：`scripts/jev_judge.mjs`（评估模态**只能走 AI SDK**，手搓 HTTP 会 404；key 从项目根 `.env` 读
+`AI_GATEWAY_API_KEY`，脚本不打印密钥）。另有一个更早的 `scripts/score_with_jev.py`（走 OpenAI 兼容的
+`/v1/chat/completions`）——它对 `jev` 只能拿到 400「is an evaluation model, not a language model」，
+留着仅作对照。注意 `--list-models` 与真实调用走的是**两道不同的门**：前者成功只证明鉴权有效，
 实测出现过"列表能拉 376 个模型、调用却 403（账号未挂支付方式）"，别把能列模型当成网关照常可用。
+免费档请求频率限制很紧，连续十来次调用就会返回 `GatewayRateLimitError`。
 
 **若将来要给某个角色 pin 非默认模型**（不管是谁），开局前必须做一次体检：让它完成**至少一次真实工具调用**
 （例如 Read `plan_used.json`）并把结果回出来；通不过就**不要开局**、把失败形态原样报给用户，
