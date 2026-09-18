@@ -1,0 +1,9 @@
+{
+  "match": "match-016",
+  "result": "lost",
+  "durationSec": 362,
+  "planVersion": "v013",
+  "opponent": "ai-easy",
+  "notes": "v013 首败(rt-30428d6bd1)：盟军 GA@71,118 vs ai-easy 盟军@135,80(东北)，0 次 apply、stance 全程 defend、进攻 0 次；4:09-4:30 连丢 4 辆 CMIN(5600)，ATESLA 排产后从未落地",
+  "recordedAt": "2026-09-18T22:02:02"
+}

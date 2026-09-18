@@ -1,0 +1,2048 @@
+[
+ {
+  "t": 1,
+  "players": {
+   "Player 1": {
+    "credits": 10000,
+    "power": 0,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 10000,
+    "power": 0,
+    "defeated": false,
+    "buildings": {},
+    "units": {
+     "AMCV": 1
+    },
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   }
+  }
+ },
+ {
+  "t": 11,
+  "players": {
+   "Player 1": {
+    "credits": 9056,
+    "power": 200,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 9069,
+    "power": 200,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   }
+  }
+ },
+ {
+  "t": 21,
+  "players": {
+   "Player 1": {
+    "credits": 8089,
+    "power": 200,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 7704,
+    "power": 190,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1
+    },
+    "units": {
+     "ADOG": 1,
+     "E1": 1
+    },
+    "army": {
+     "count": 2,
+     "value": 380,
+     "at": {
+      "x": 131,
+      "y": 81
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 31,
+  "players": {
+   "Player 1": {
+    "credits": 7145,
+    "power": 150,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAREFN": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 6738,
+    "power": 190,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1
+    },
+    "units": {
+     "ADOG": 1,
+     "E1": 1
+    },
+    "army": {
+     "count": 2,
+     "value": 380,
+     "at": {
+      "x": 131,
+      "y": 75
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 41,
+  "players": {
+   "Player 1": {
+    "credits": 5010,
+    "power": 140,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAREFN": 1,
+     "GAPILE": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "ADOG": 1,
+     "E1": 1
+    },
+    "army": {
+     "count": 2,
+     "value": 380,
+     "at": {
+      "x": 76,
+      "y": 120
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 5800,
+    "power": 140,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1,
+     "GAREFN": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "ADOG": 1,
+     "E1": 1
+    },
+    "army": {
+     "count": 2,
+     "value": 380,
+     "at": {
+      "x": 127,
+      "y": 74
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 51,
+  "players": {
+   "Player 1": {
+    "credits": 2775,
+    "power": 90,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 6
+    },
+    "army": {
+     "count": 6,
+     "value": 1080,
+     "at": {
+      "x": 76,
+      "y": 116
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 4576,
+    "power": 140,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1,
+     "GAREFN": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "ADOG": 1,
+     "E1": 2
+    },
+    "army": {
+     "count": 3,
+     "value": 560,
+     "at": {
+      "x": 123,
+      "y": 85
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 61,
+  "players": {
+   "Player 1": {
+    "credits": 333,
+    "power": 15,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 7,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 8,
+     "value": 1460,
+     "at": {
+      "x": 78,
+      "y": 113
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 2515,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 6
+    },
+    "army": {
+     "count": 6,
+     "value": 1080,
+     "at": {
+      "x": 135,
+      "y": 79
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 71,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 15,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 7,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 8,
+     "value": 1460,
+     "at": {
+      "x": 78,
+      "y": 112
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 65,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 11
+    },
+    "army": {
+     "count": 11,
+     "value": 1980,
+     "at": {
+      "x": 125,
+      "y": 82
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 81,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 7
+    },
+    "army": {
+     "count": 7,
+     "value": 1260,
+     "at": {
+      "x": 77,
+      "y": 113
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 65,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 11
+    },
+    "army": {
+     "count": 11,
+     "value": 1980,
+     "at": {
+      "x": 117,
+      "y": 89
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 91,
+  "players": {
+   "Player 1": {
+    "credits": 457,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 7
+    },
+    "army": {
+     "count": 7,
+     "value": 1260,
+     "at": {
+      "x": 78,
+      "y": 111
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 65,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 1,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 2,
+     "E1": 11
+    },
+    "army": {
+     "count": 11,
+     "value": 1980,
+     "at": {
+      "x": 108,
+      "y": 95
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 101,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 4
+    },
+    "army": {
+     "count": 4,
+     "value": 720,
+     "at": {
+      "x": 75,
+      "y": 113
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1118,
+    "power": 265,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 2,
+     "E1": 8
+    },
+    "army": {
+     "count": 8,
+     "value": 1440,
+     "at": {
+      "x": 123,
+      "y": 86
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 111,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 4,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 5,
+     "value": 920,
+     "at": {
+      "x": 76,
+      "y": 116
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 265,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 2,
+     "E1": 8
+    },
+    "army": {
+     "count": 8,
+     "value": 1440,
+     "at": {
+      "x": 123,
+      "y": 86
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 121,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2
+    },
+    "units": {
+     "CMIN": 1,
+     "E1": 4,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 5,
+     "value": 920,
+     "at": {
+      "x": 81,
+      "y": 110
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 569,
+    "power": 265,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 3,
+     "E1": 8
+    },
+    "army": {
+     "count": 8,
+     "value": 1440,
+     "at": {
+      "x": 122,
+      "y": 87
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 131,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3
+    },
+    "units": {
+     "CMIN": 2,
+     "E1": 4
+    },
+    "army": {
+     "count": 4,
+     "value": 720,
+     "at": {
+      "x": 73,
+      "y": 117
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 265,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 1,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 3,
+     "FV": 1,
+     "E1": 7,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 9,
+     "value": 2060,
+     "at": {
+      "x": 124,
+      "y": 86
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 141,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3
+    },
+    "units": {
+     "CMIN": 2,
+     "E1": 4
+    },
+    "army": {
+     "count": 4,
+     "value": 720,
+     "at": {
+      "x": 73,
+      "y": 117
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1745,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "FV": 2,
+     "E1": 7,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 10,
+     "value": 2660,
+     "at": {
+      "x": 124,
+      "y": 86
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 151,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3
+    },
+    "units": {
+     "CMIN": 2,
+     "E1": 4
+    },
+    "army": {
+     "count": 4,
+     "value": 720,
+     "at": {
+      "x": 73,
+      "y": 117
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1658,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "FV": 2,
+     "MTNK": 1,
+     "E1": 7,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 11,
+     "value": 3410,
+     "at": {
+      "x": 124,
+      "y": 87
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 161,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 1,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3
+    },
+    "units": {
+     "CMIN": 2,
+     "MTNK": 1,
+     "E1": 4
+    },
+    "army": {
+     "count": 5,
+     "value": 1470,
+     "at": {
+      "x": 73,
+      "y": 117
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1496,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "FV": 2,
+     "MTNK": 3,
+     "E1": 6,
+     "ADOG": 1
+    },
+    "army": {
+     "count": 12,
+     "value": 4730,
+     "at": {
+      "x": 127,
+      "y": 87
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 171,
+  "players": {
+   "Player 1": {
+    "credits": 250,
+    "power": 165,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3
+    },
+    "units": {
+     "CMIN": 3,
+     "MTNK": 1,
+     "E1": 5
+    },
+    "army": {
+     "count": 6,
+     "value": 1650,
+     "at": {
+      "x": 76,
+      "y": 113
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1949,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "FV": 2,
+     "MTNK": 3,
+     "E1": 5,
+     "ADOG": 1,
+     "JUMPJET": 2
+    },
+    "army": {
+     "count": 13,
+     "value": 5750,
+     "at": {
+      "x": 107,
+      "y": 92
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 181,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 165,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3
+    },
+    "units": {
+     "CMIN": 3,
+     "E1": 1
+    },
+    "army": {
+     "count": 1,
+     "value": 180,
+     "at": {
+      "x": 73,
+      "y": 116
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1539,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 5,
+     "MTNK": 2,
+     "E1": 5,
+     "JUMPJET": 3
+    },
+    "army": {
+     "count": 10,
+     "value": 4200,
+     "at": {
+      "x": 103,
+      "y": 97
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 191,
+  "players": {
+   "Player 1": {
+    "credits": 534,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 3,
+     "E1": 1
+    },
+    "army": {
+     "count": 1,
+     "value": 180,
+     "at": {
+      "x": 68,
+      "y": 117
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 604,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 6,
+     "MTNK": 1,
+     "E1": 3,
+     "JUMPJET": 5
+    },
+    "army": {
+     "count": 9,
+     "value": 4290,
+     "at": {
+      "x": 111,
+      "y": 94
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 201,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 3,
+     "E1": 2
+    },
+    "army": {
+     "count": 2,
+     "value": 360,
+     "at": {
+      "x": 79,
+      "y": 115
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1529,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 6,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 7,
+     "value": 4200,
+     "at": {
+      "x": 136,
+      "y": 78
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 212,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "E1": 3
+    },
+    "army": {
+     "count": 3,
+     "value": 540,
+     "at": {
+      "x": 75,
+      "y": 115
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1399,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 7,
+     "FV": 1,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 8,
+     "value": 4800,
+     "at": {
+      "x": 137,
+      "y": 79
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 222,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "E1": 4
+    },
+    "army": {
+     "count": 4,
+     "value": 720,
+     "at": {
+      "x": 77,
+      "y": 115
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 3059,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 7,
+     "FV": 2,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 9,
+     "value": 5400,
+     "at": {
+      "x": 137,
+      "y": 80
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 232,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "MTNK": 1,
+     "E1": 4
+    },
+    "army": {
+     "count": 5,
+     "value": 1470,
+     "at": {
+      "x": 78,
+      "y": 116
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 2968,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 7,
+     "FV": 2,
+     "MTNK": 2,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 11,
+     "value": 6900,
+     "at": {
+      "x": 138,
+      "y": 81
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 242,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 4,
+     "MTNK": 1,
+     "E1": 4
+    },
+    "army": {
+     "count": 5,
+     "value": 1470,
+     "at": {
+      "x": 78,
+      "y": 115
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 2638,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1
+    },
+    "units": {
+     "CMIN": 7,
+     "FV": 2,
+     "MTNK": 3,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 12,
+     "value": 7650,
+     "at": {
+      "x": 122,
+      "y": 86
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 252,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 3,
+     "MTNK": 1,
+     "E1": 4
+    },
+    "army": {
+     "count": 5,
+     "value": 1470,
+     "at": {
+      "x": 78,
+      "y": 115
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1128,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1
+    },
+    "units": {
+     "CMIN": 7,
+     "FV": 2,
+     "MTNK": 3,
+     "JUMPJET": 9
+    },
+    "army": {
+     "count": 14,
+     "value": 8850,
+     "at": {
+      "x": 114,
+      "y": 85
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 262,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {
+     "CMIN": 1,
+     "MTNK": 1,
+     "E1": 4
+    },
+    "army": {
+     "count": 5,
+     "value": 1470,
+     "at": {
+      "x": 78,
+      "y": 115
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 65,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1
+    },
+    "units": {
+     "CMIN": 9,
+     "FV": 2,
+     "MTNK": 3,
+     "JUMPJET": 10
+    },
+    "army": {
+     "count": 15,
+     "value": 9450,
+     "at": {
+      "x": 97,
+      "y": 103
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 272,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 3,
+     "GAAIRC": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 65,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1
+    },
+    "units": {
+     "CMIN": 9,
+     "FV": 2,
+     "MTNK": 3,
+     "JUMPJET": 4
+    },
+    "army": {
+     "count": 9,
+     "value": 5850,
+     "at": {
+      "x": 106,
+      "y": 96
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 282,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 115,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 2,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 0,
+    "power": 65,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1
+    },
+    "units": {
+     "CMIN": 9,
+     "FV": 2,
+     "MTNK": 2,
+     "JUMPJET": 5
+    },
+    "army": {
+     "count": 9,
+     "value": 5700,
+     "at": {
+      "x": 111,
+      "y": 93
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 292,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 165,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAREFN": 2,
+     "GAPILE": 1,
+     "NASAM": 1,
+     "GAWEAP": 1,
+     "GAPILL": 1,
+     "GAAIRC": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1026,
+    "power": 265,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1
+    },
+    "units": {
+     "CMIN": 10,
+     "FV": 2,
+     "MTNK": 2,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 11,
+     "value": 6900,
+     "at": {
+      "x": 115,
+      "y": 90
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 302,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 215,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "NASAM": 1,
+     "GAWEAP": 1,
+     "GAPILL": 1,
+     "GAREFN": 1,
+     "GAAIRC": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1236,
+    "power": 240,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1,
+     "GADEPT": 1
+    },
+    "units": {
+     "CMIN": 10,
+     "FV": 4,
+     "MTNK": 1,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 12,
+     "value": 7350,
+     "at": {
+      "x": 122,
+      "y": 88
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 312,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 315,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAWEAP": 1,
+     "GAAIRC": 1
+    },
+    "units": {
+     "E1": 1
+    },
+    "army": {
+     "count": 1,
+     "value": 180,
+     "at": {
+      "x": 77,
+      "y": 121
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 215,
+    "power": 240,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1,
+     "GADEPT": 1
+    },
+    "units": {
+     "CMIN": 10,
+     "FV": 4,
+     "MTNK": 2,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 13,
+     "value": 8100,
+     "at": {
+      "x": 124,
+      "y": 88
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 322,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 315,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAWEAP": 1,
+     "GAAIRC": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1775,
+    "power": 240,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1,
+     "GADEPT": 1
+    },
+    "units": {
+     "CMIN": 10,
+     "FV": 4,
+     "MTNK": 4,
+     "JUMPJET": 7
+    },
+    "army": {
+     "count": 15,
+     "value": 9600,
+     "at": {
+      "x": 125,
+      "y": 88
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 332,
+  "players": {
+   "Player 1": {
+    "credits": 0,
+    "power": 365,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAWEAP": 1
+    },
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1615,
+    "power": 240,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1,
+     "GADEPT": 1
+    },
+    "units": {
+     "CMIN": 10,
+     "FV": 4,
+     "MTNK": 4,
+     "JUMPJET": 8
+    },
+    "army": {
+     "count": 16,
+     "value": 10200,
+     "at": {
+      "x": 92,
+      "y": 106
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 342,
+  "players": {
+   "Player 1": {
+    "credits": 1077,
+    "power": 365,
+    "defeated": false,
+    "buildings": {
+     "GAPOWR": 2,
+     "GAPILE": 1,
+     "GAWEAP": 1
+    },
+    "units": {
+     "E1": 3
+    },
+    "army": {
+     "count": 3,
+     "value": 540,
+     "at": {
+      "x": 73,
+      "y": 121
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 2119,
+    "power": 240,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1,
+     "GADEPT": 1
+    },
+    "units": {
+     "CMIN": 11,
+     "FV": 4,
+     "MTNK": 4,
+     "JUMPJET": 10
+    },
+    "army": {
+     "count": 18,
+     "value": 11400,
+     "at": {
+      "x": 101,
+      "y": 100
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 352,
+  "players": {
+   "Player 1": {
+    "credits": 19,
+    "power": 375,
+    "defeated": false,
+    "buildings": {
+     "GAPOWR": 2,
+     "GAWEAP": 1
+    },
+    "units": {
+     "E1": 1
+    },
+    "army": {
+     "count": 1,
+     "value": 180,
+     "at": {
+      "x": 70,
+      "y": 121
+     }
+    }
+   },
+   "@@AI2@@": {
+    "credits": 2016,
+    "power": 240,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1,
+     "GADEPT": 1
+    },
+    "units": {
+     "CMIN": 12,
+     "FV": 4,
+     "MTNK": 3,
+     "JUMPJET": 10
+    },
+    "army": {
+     "count": 17,
+     "value": 10650,
+     "at": {
+      "x": 113,
+      "y": 92
+     }
+    }
+   }
+  }
+ },
+ {
+  "t": 362,
+  "players": {
+   "Player 1": {
+    "credits": 385,
+    "power": 0,
+    "defeated": true,
+    "buildings": {},
+    "units": {},
+    "army": {
+     "count": 0,
+     "value": 0,
+     "at": null
+    }
+   },
+   "@@AI2@@": {
+    "credits": 1620,
+    "power": 240,
+    "defeated": false,
+    "buildings": {
+     "GACNST": 1,
+     "GAPOWR": 3,
+     "GAPILE": 1,
+     "GAREFN": 3,
+     "GAWEAP": 1,
+     "GAPILL": 2,
+     "GAAIRC": 1,
+     "GATECH": 1,
+     "GADEPT": 1
+    },
+    "units": {
+     "CMIN": 12,
+     "FV": 4,
+     "MTNK": 3,
+     "JUMPJET": 10
+    },
+    "army": {
+     "count": 17,
+     "value": 10650,
+     "at": {
+      "x": 113,
+      "y": 93
+     }
+    }
+   }
+  }
+ }
+]

@@ -80,6 +80,9 @@ function ra2Runtime() {
       armyHist: [], approach: null, alarm: false, airSeen: false, attack: null, scoutId: null, scouted: false, scoutRetryAt: 0, scoutTries: 0, repairing: new Set(),
       lastOrder: new Map(), pendingPlace: 0, lastTick: {}, oreTiles: [], siegeTarget: null, siegeHit: new Map(), noArmySince: null,
       av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null, stillTicks: new Map(), hoardSince: null, hoardWarned: 0, defend: null, defendBroken: false, airNearWarned: false,
+      // id -> tile the unit was standing on when we issued DeploySelected. Deploy toggles, so this ledger is what
+      // stops the reflex from standing the same squad back up every tick.
+      deployed: new Map(),
       // Cumulative battle tallies. Both real-time roles independently mis-added the exchange ratio in match-009
       // (reported 2.8:1, actually 1.76:1 — a 59% error) because `events` is a truncated rolling window and there
       // was no running total to read. Kept here rather than parsed back out of log strings.
@@ -583,6 +586,36 @@ function ra2Runtime() {
       }
       if (M.alarm) { M.alarm = false; M.defend = null; M.defendBroken = false; log('alarm', '威胁解除'); }
 
+      // Deployed (prone) infantry — the AI's signature trick, and the one thing we had never once done ourselves
+      // in sixteen matches. A deployed GI trades its M60 (15 damage) for the M60E (25, +67%) and takes half damage
+      // from AP weapons, which is exactly how the opponent's stationary E1 blob ground down 9 MTNK in match-006
+      // and match-007 while our own infantry stood up and traded at par. T-022 already weights *enemy* stationary
+      // infantry at 1.6x for precisely this reason; nothing ever issued the order on our side.
+      // `ORD.DeploySelected` is the same order that unpacks the MCV, so this needs no new engine surface.
+      // Two guards, both deliberate:
+      //   1. Deploy is a toggle. A unit that has not moved since we deployed it must never be touched again, or we
+      //      stand it straight back up; the position ledger is that guard, and it self-heals — when the unit is
+      //      ordered to move the engine stands it up, its tile changes, and it is eligible again once it settles.
+      //   2. Eligibility comes from the engine's own `rules.deployer` flag, not from the unit name. That distinction
+      //      is load-bearing: E1 (Allied rifleman) reports deployer/deployFire = true, but E2 (Soviet conscript)
+      //      reports BOTH false, so the name-based version of this reflex would have fired a dead order at every
+      //      conscript every tick in every Soviet match. Verified live via game.rules.getObject in match-016.
+      // This code is reached only when `threats` is empty — the threat block above returns otherwise — so nothing is
+      // currently shooting at us. Scope is deliberately narrow: defend stance, and only troops already parked
+      // inside the rally area, which is the same "<= 6 tiles from rally" set the rally reflex leaves alone, so the
+      // two can never fight each other over whether these units should be moving.
+      // (A reflex of this shape was first proposed in match-003's runtime_issues and never implemented.)
+      if (P.stance === 'defend') {
+        const parked = units.filter(o => o.rules.deployer === true && d2(xy(o), rally) <= 36);
+        for (const u of parked) {
+          const p = xy(u), at = M.deployed.get(u.id);
+          if (at && at.x === p.x && at.y === p.y) continue;
+          my.orderUnits([u.id], ORD.DeploySelected);
+          M.deployed.set(u.id, {x: p.x, y: p.y});
+          if (every('deployLog', 20)) log('reflex', `步兵在集结点部署：${JSON.stringify(tally(parked.map(o => o.name)))} 已在集结点 6 格内（坐下 = 火力 +67%、穿甲伤害减半）`);
+        }
+      }
+
       if (P.stance === 'attack') {
         if (!M.attack) {
           if (units.length >= P.attackMinUnits) {
@@ -859,14 +892,27 @@ function ra2Runtime() {
     // Any explicit order cancels the harvester AI in this engine; re-arm anything that is fully idle. Verified
     // live in match-012 (ore 0->3, tasks 0->1 on the re-armed unit). Logged once per recovery so a flatlining
     // economy leaves a trace instead of only showing up as "credits are always 0".
+    // An idle miner gets re-armed — but only if the patch it is about to be sent to is not still camped. The
+    // retreat-repath path above learned that the expensive way in match-014 (three CMIN fed to a camper within
+    // 3-11 seconds of arriving, all 8 CMIN lost that way). This watchdog never got the same guard, and match-016
+    // showed what it costs: the 4:21 re-arm fired with enemy units already standing on our approach at (83,112),
+    // and that CMIN died 9 seconds later. It was the fourth of four harvesters lost inside 26 seconds, after which
+    // income stayed at zero for the rest of the match and nothing could be rebuilt. Miners cost 1400 and there are
+    // only six, so waiting out a camper is always cheaper than feeding one.
     function rearmIdleMiners(S) {
       const idle = S.mine.filter(o => o.rules.harvester).filter(o => {
         const uo = o.unitOrderTrait;
         return uo && uo.orders.length === 0 && (uo.tasks || []).length === 0;
       });
-      let n = 0;
-      for (const m of idle) { try { m.harvesterTrait.queueAutoGatherAfterOwnershipSettles(m, game); n++; } catch (e) {} }
+      const campers = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
+      let n = 0, held = 0;
+      for (const m of idle) {
+        const spot = (M.oreTiles.length ? M.oreTiles.reduce((a, t) => d2(t, xy(m)) < d2(a, xy(m)) ? t : a) : null) || xy(m);
+        if (campers.some(o => d2(xy(o), spot) < 12 * 12)) { held++; continue; }
+        try { m.harvesterTrait.queueAutoGatherAfterOwnershipSettles(m, game); n++; } catch (e) {}
+      }
       if (n) log('reflex', `发现 ${n} 辆矿车完全闲置（无指令无任务），用原生 gather 重新武装（资金 ${g.getPlayerData(ME).credits}）`);
+      if (held && every('rearmHeld', 15)) log('reflex', `矿区 12 格内仍有敌军：${held} 辆闲置矿车暂不重武装，等威胁解除`);
       return n;
     }
 
