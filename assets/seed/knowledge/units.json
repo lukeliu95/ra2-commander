@@ -48,6 +48,9 @@
     "PLA": {"faction": "Confederation", "kind": "infantry", "cost": 200, "hp": 200, "armor": "flak", "speed": 12.8, "prereq": ["CAHAND"], "techLevel": 1, "verified": "live",
       "weapon": {"name": "M60", "damage": 15, "rof": 20, "range": 4, "warhead": "SA"}},
     "CHAR": {"faction": "Confederation(+苏系)", "kind": "vehicle(miner)", "cost": 800, "hp": 500, "armor": "medium", "speed": 39.38, "prereq": ["CAWEAP", "PROC"], "techLevel": 1, "verified": "live"},
+    "V32": {"faction": "Confederation", "kind": "vehicle（CA 专属科技 8 火箭车，是苏军 V3 的强化版，不是同一单位）", "cost": 1400, "hp": 230, "armor": "light", "speed": 23.6, "sight": 8, "prereq": ["CAWEAP", "CARADR", "CATECH", "CAARMR"], "techLevel": 8, "verified": "live",
+      "weapon": {"name": "V3Launcher", "rof": 150, "range": 18, "projectileSpeed": 25.6, "warhead": "Special", "note": "与苏军 V3 主武器数据完全相同（射速/射程/弹速一致）；`getWarhead('Special')` 的 verses 为空、proneDamage=1，说明伤害不走常规装甲乘数表，是引擎对 V3 系导弹的专用命中逻辑，暂无法用现有接口进一步拆解具体伤害数值。"},
+      "note": "match-008 首次实战出现（4:07，判负时仍存活 1 辆，未成规模），此前只在 match-005 的兵种池表里被记录为'可造但未见'。match-008 现场用 `window.__cmd.game.rules.vehicleRules.get('V32')`（不是 `getObject`，这是本次能查到数据、而 getObject 报 'Missing rules' 的关键差异，下次查载具类单位可以优先试 `vehicleRules.get`）核实。对比苏军 V3（造价 800、HP 150、速度 15.75、前置仅 NAWEAP+NARADR）：**V32 是"更贵、更肉、更快"的强化版**（造价 1400/+75%、HP 230/+53%、速度 23.6/+50%），前置条件重得多（需要 CAWEAP+CARADR+CATECH+CAARMR 四个建筑，techLevel 8），意味着敌方要撑到中后期科技点满才会出现，和本局'截至判负只出 1 辆'的观察一致——不是速攻单位，是持久战才会见到的后期加强件。"},
 
     "HTNK": {"faction": "Soviet(NA)", "kind": "vehicle (犀牛坦克)", "verified": "unknown",
       "note": "苏军主力坦克，档案时间节点 2:01–2:21，被灰熊/GGI克制的定性描述有，但没有 cost/hp/armor/weapon 硬数字。opponents/ai-easy.md 苏军节里只有文字描述'碉堡对HTNK效果差'，未核实具体伤害系数。"},
@@ -58,8 +61,8 @@
     "DOG": {"faction": "Soviet(NA)", "kind": "infantry (军犬)", "verified": "unknown"}
   },
   "coverage_summary": {
-    "fully_verified_live": ["E1(含卧倒态)", "MTNK", "CMIN", "GAPILL", "ATESLA", "LTNK", "GHOST2", "PLA", "CHAR", "JUMPJET（match-007 补全）", "NASAM（match-007 补全）"],
-    "unknown_high_priority": ["SREF（match-006 拆家主凶）", "MGTK（match-006/007 都出现但两局都没能查到 rules）", "FV（match-007 尝试 getObject 各 tier 均报 Missing rules，可能是引擎懒加载导致——只有单位真正出现在视野里 rules 才会被加载，下次要在 FV 还存活、刚发现的那一刻立刻查，不要等复盘）", "HTNK", "V3", "APOC", "HTK", "E2"],
-    "note": "优先级建议：下一局如果再遇到盟军且出现 MGTK/SREF/FV，指挥官/情报分析员应在**单位刚被发现、仍在视野里存活**的那一刻立刻跑 game.rules.getObject(name, tier)（tier 0-5 都试）和 getWeapon()（用 window.__cmd.game || window.__cmd.g，不要用 window.game，见 how_to_refresh），不要等复盘——match-007 尝试补查 FV/MGTK/SREF 时全部返回 'Missing rules for object'，推测是引擎只为出现过的单位懒加载 rules、且可能在单位死亡/离开视野后又被回收，复盘时（哪怕 window.__cmd 还在）也可能查不到了。JUMPJET/NASAM 这次能查到，可能是因为它们判负时仍然存活/在场。"
+    "fully_verified_live": ["E1(含卧倒态)", "MTNK", "CMIN", "GAPILL", "ATESLA", "LTNK", "GHOST2", "PLA", "CHAR", "JUMPJET（match-007 补全）", "NASAM（match-007 补全）", "V32（match-008 补全）"],
+    "unknown_high_priority": ["SREF（match-006 拆家主凶）", "MGTK（match-006/007 都出现但两局都没能查到 rules）", "FV（match-007/008 两次尝试 getObject 各 tier 均报 Missing rules，可能是引擎懒加载导致——只有单位真正出现在视野里 rules 才会被加载，下次要在 FV 还存活、刚发现的那一刻立刻查，不要等复盘）", "HTNK", "V3", "APOC", "HTK", "E2"],
+    "note": "优先级建议：下一局如果再遇到盟军且出现 MGTK/SREF/FV，指挥官/情报分析员应在**单位刚被发现、仍在视野里存活**的那一刻立刻跑 game.rules.getObject(name, tier)（tier 0-5 都试）和 getWeapon()（用 window.__cmd.game || window.__cmd.g，不要用 window.game，见 how_to_refresh），不要等复盘——match-007 尝试补查 FV/MGTK/SREF 时全部返回 'Missing rules for object'，推测是引擎只为出现过的单位懒加载 rules、且可能在单位死亡/离开视野后又被回收，复盘时（哪怕 window.__cmd 还在）也可能查不到了。JUMPJET/NASAM 这次能查到，可能是因为它们判负时仍然存活/在场。**match-008 新增经验**：分析员在对局仍在进行、V32 仍存活于视野中时，用 `game.rules.vehicleRules.get(name)`（不是 `getObject`）成功查到了数据，而学习员赛后（同一个 tab，`window.__cmd` 仍在，但游戏已判负一段时间）用 `getObject` 各 tier 尝试查 V32 全部报错——**这进一步印证'必须在单位存活于视野中的当下查，用对存取器，复盘时大概率查不到'这条经验，且提示除了 getObject 之外，`game.rules.vehicleRules.get(name)` / 可能还有 `infantryRules.get`、`buildingRules.get` 等分类存取器值得下次都试一遍**，不要只依赖 getObject。"
   }
 }

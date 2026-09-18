@@ -1,0 +1,9 @@
+{
+  "match": "match-008",
+  "result": "lost",
+  "durationSec": 260,
+  "planVersion": "v007",
+  "opponent": "ai-easy",
+  "notes": "v007首战负，4:19/4:20，本系列第二快。defendRetreatRatio首次实战：2:48(26%)及时止损、有利交换(2940换3660)后安全撤回；3:20(0%)因残部基数过小(1950)+两FV同tick阵亡，比例跌破点被跳过，触发太晚。infantryCap 0:53识别CA后1:22降到3(T-020首次执行)。GHOST2 3:23-3:26再次C4连拆3矿厂+1碉堡致经济归零(match-005同款)。ATESLA本局2:33才排产、终局未完工，反比match-005的2:03慢。V32 4:07首次实战出现(此前只在match-005 rules里预见未实战遇到)。CA阵营两局都无空军，NASAM未遇到拦截目标。",
+  "recordedAt": "2026-09-18T12:02:39"
+}

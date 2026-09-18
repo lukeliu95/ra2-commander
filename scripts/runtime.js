@@ -21,7 +21,7 @@ function ra2Runtime() {
     targetRefineries: 3, minersPerRefinery: 2, maxMiners: 7, maxFactories: 2,
     vehicleMix: {tank: 3, aaVehicle: 2}, infantryMix: {inf: 1}, infantryCap: 8,
     defenses: {baseDef: 2}, defenseDistance: 6, threatRadius: 14, leashRadius: 8, sortieMaxUnits: 4, minerEscort: 0,
-    attackMinUnits: 14, retreatRatio: 0.35, defendRetreatRatio: 0.4, attackTarget: 'auto',
+    attackMinUnits: 14, retreatRatio: 0.35, defendRetreatRatio: 0.4, defendMinValue: 800, attackTarget: 'auto',
     siegeAutoAttackUnits: 8, siegeQuietSeconds: 10,
     scout: true, repair: true,
   };
@@ -259,17 +259,24 @@ function ra2Runtime() {
           // Enemy aircraft actually loitering near our buildings right now overrides the normal cost gate for
           // AA specifically — match-007: NASAM costs 1000, always misses the <=700 alarm fast-track, so 7
           // JUMPJET camped inside the base for 90s with zero air defense ever queued.
-          const airNear = S.hostile.some(o => isAir(o) && S.buildings.some(b => d2(xy(b), xy(o)) < (P.defenseDistance + P.leashRadius + 6) ** 2));
+          const nearRadius = (P.defenseDistance + P.leashRadius + 6) ** 2;
+          const airNear = S.hostile.some(o => isAir(o) && S.buildings.some(b => d2(xy(b), xy(o)) < nearRadius));
+          // Same idea for strongDef (prism tower / Tesla coil): match-008 found ATESLA queued at 2:33 still not
+          // placed by 3:47 (74s+ to build vs. 34s in match-005) while heavy armor/high-value infantry (LTNK,
+          // GHOST2) were already closing in — the one thing that actually counters them never got funded in time.
+          const groundNear = S.hostile.some(o => !isAir(o) && !o.isBuilding() && !o.rules.harvester && cost(o) >= 500 && S.buildings.some(b => d2(xy(b), xy(o)) < nearRadius));
           for (const [role, n] of Object.entries(wantDefenses(P, av))) {
             const name = R(role);
             if ((counts[name] || 0) >= n || !av.has(name)) continue;
             const c = (game.rules.getObject(name, 2) || {}).cost || 0;
             const aaUrgent = role === 'aaDef' && airNear && pd.credits >= 300;
-            if ((pd.credits > 700 && pd.credits >= c * 0.5) || (M.alarm && c <= 700) || aaUrgent) { my.queueForProduction(Q.Armory, name, 2, 1); log('build', `排产防御 ${name}（${c}，资金 ${pd.credits}${aaUrgent ? '，敌机在附近，绕过资金门槛' : ''}）`); }
+            const strongUrgent = role === 'strongDef' && groundNear && pd.credits >= c * 0.3;
+            const urgent = aaUrgent || strongUrgent;
+            if ((pd.credits > 700 && pd.credits >= c * 0.5) || (M.alarm && c <= 700) || urgent) { my.queueForProduction(Q.Armory, name, 2, 1); log('build', `排产防御 ${name}（${c}，资金 ${pd.credits}${urgent ? '，敌方逼近，绕过资金门槛' : ''}）`); }
             break;
           }
-          if (airNear && !M.airNearWarned) { M.airNearWarned = true; log('warn', '敌方飞行单位正在基地附近逗留：防空排产已绕过资金门槛'); }
-          else if (!airNear) M.airNearWarned = false;
+          if ((airNear || groundNear) && !M.airNearWarned) { M.airNearWarned = true; log('warn', `敌方${airNear ? '飞行单位' : ''}${airNear && groundNear ? '/' : ''}${groundNear ? '重型单位' : ''}正在基地附近逗留：相应防御排产已绕过资金门槛`); }
+          else if (!airNear && !groundNear) M.airNearWarned = false;
         }
       }
       const harvs = S.mine.filter(o => o.rules.harvester).length;
@@ -452,10 +459,14 @@ function ra2Runtime() {
         // The defend branch used to fight to zero every time: threatValue's stationary-infantry weighting (T-022)
         // fed the alarm log and the attack-recall check, but nothing ever told defenders to break off a losing
         // fight (match-007: 3 MTNK + 5 E1 ground down to 0 against 5 stationary E1, killing only the E1s).
+        // match-008: two FV died in the same 0.8s sample window, jumping the ratio from 61.5% straight past
+        // 40% to 0% — a committed force that's already thin can get wiped between two samples with no
+        // intermediate reading to catch. An absolute floor covers that: below defendMinValue, retreat regardless
+        // of what the ratio says, since there's nothing left worth trading further.
         const defendRatio = M.defend && M.defend.value > 0 ? myValue / M.defend.value : 1;
-        if (!M.defendBroken && defendRatio < (P.defendRetreatRatio ?? 0.4)) {
+        if (!M.defendBroken && (defendRatio < (P.defendRetreatRatio ?? 0.4) || (myValue > 0 && myValue < (P.defendMinValue ?? 800)))) {
           M.defendBroken = true;
-          log('reflex', `防守交战只剩 ${Math.round(defendRatio * 100)}%：撤回基地，不硬拼到全灭（可调 defendRetreatRatio）`);
+          log('reflex', `防守交战只剩 ${Math.round(defendRatio * 100)}%（价值 ${myValue}）：撤回基地，不硬拼到全灭（可调 defendRetreatRatio/defendMinValue）`);
         }
         if (M.defendBroken) orderThrottled(defenders, ORD.Move, base.x, base.y, 'retreat', 2);
         else orderThrottled(defenders, ORD.AttackMove, pt.x, pt.y, 'def', 3);

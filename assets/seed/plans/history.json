@@ -54,5 +54,13 @@
       "durationSec": 323,
       "opponent": "ai-easy"
     }
+  ],
+  "v007": [
+    {
+      "match": "match-008",
+      "result": "lost",
+      "durationSec": 260,
+      "opponent": "ai-easy"
+    }
   ]
 }

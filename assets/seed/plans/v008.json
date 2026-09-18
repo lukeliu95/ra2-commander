@@ -1,0 +1,49 @@
+{
+  "version": "v008",
+  "parent": "v007",
+  "createdAt": "2026-09-18T12:07:47",
+  "reason": "复盘 match-008（v007 首战负，4:19/4:20，本系列第二快，对手第二次是古巴 Confederation）。本局暴露的两个最直接败因——(1) defendRetreatRatio 在残部基数过小时会被同 tick 多单位损失跳过阈值窗口（T-029新增）、(2) GHOST2 的 Sapper C4 一次性拆楼对现有70%阈值修理反射完全无解（T-030，第二次独立确认，match-005同款死法）——都是执行层/运行时代码层面的问题，不是plan字段能表达或修复的（已详细写入 runtime_issues.md，需要主会话下一轮改 runtime.js）。T-020（古巴局降低步兵上限、转投坦克+光棱塔）本局首次真正执行并确认有效：交换比从 match-005 的 1:1 提升到我方略优，生存时间多撑30秒，故不回退、不改这部分。唯一一个有数据支持、且能落到现有plan字段上的调整：defenses.baseDef 从 2 上调到 3——两局古巴样本（match-005、match-008）里 GHOST2 C4 拆楼都精确发生在矿厂集群，现有2座基地防御建筑覆盖不足以在GHOST2抵近引爆C4（射程1.5）之前拦截它；增加1座防御建筑目标数，配合执行层已有的'贴身防御'倾向，理论上能提高在GHOST2抵近矿厂前将其消灭的概率（未验证，留待match-009观察是否减少或延迟C4连拆矿厂的事件）。aaDef/strongDef维持不变：aaDef本局验证是对古巴的低成本保险（无空中目标可拦但不构成损失，见ai-easy.md古巴节新增说明）；strongDef（光棱塔）本身有效，问题在于排产时机被资金竞争拖慢，是资金分配逻辑问题不是数量问题，不通过增加defenses数值解决。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 4,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 14,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4,
+      "aaVehicle": 1
+    },
+    "defenses": {
+      "baseDef": 3,
+      "aaDef": 1,
+      "strongDef": 1
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 1,
+    "defendRetreatRatio": 0.4
+  }
+}
