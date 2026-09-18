@@ -326,6 +326,38 @@ function ra2Runtime() {
     const isAir = o => airborne(o) && !isMissile(o);
     const isCombat = o => !o.isBuilding() && !o.rules.harvester && !baseUnits.includes(o.name) && !o.rules.engineer;
     const avail = () => new Set(player.production.getAvailableObjects().map(r => r.name));
+
+    // ===== TACTICAL_TAC_BEGIN（由 patch-tactical.py 注入，勿手改此块）=====
+    // 实例化战术内核。两个坑，都是 match-017 开局 3 秒内用一条 "TAC is not defined" 换来的：
+    //   1. 第一版把这几行写在 TACTICAL_CORE 块**里面**，而 patch 脚本的幂等分支会用最新核心源码整体覆盖那一块，
+    //      实例化因此被抹掉；tacRefresh/tacDo/tacRead/tacAct 全都在用 TAC，于是 tacticalMode 每个 tick 抛异常，
+    //      把该 tick 后面的 siege/repair/retaliate/rearm 整段跳过。现在它有自己的 BEGIN/END 标记，两边都幂等。
+    //   2. 第一版传的是 `towerRange: p => towerRangeAt(p)`，但 towerRangeAt 是 army() 的局部函数，在这里不可见，
+    //      真跑起来会换成另一个 "not defined"。改成 start() 作用域内的实现。
+    // 位置也有讲究：锚点必须在所有工具函数之后（xy/d2/.../isCombat 都是 const，早了会撞 TDZ）。
+    const towerRangeCache = new Map();
+    const towerRange = pt => {
+      const towers = (C.state ? C.state().buildings : []).filter(o => o.rules.isBaseDefense);
+      if (!towers.length) return null;
+      const b = towers.reduce((a, t) => d2(xy(t), pt) < d2(xy(a), pt) ? t : a);
+      if (towerRangeCache.has(b.name)) return towerRangeCache.get(b.name);
+      let r = null;
+      try {
+        const rules = game.rules.getObject(b.name, 2);
+        const w = rules && (rules.primary || rules.elitePrimary) && game.rules.getWeapon(rules.primary || rules.elitePrimary);
+        if (w && w.range) r = w.range;
+      } catch (e) {}
+      towerRangeCache.set(b.name, r);
+      return r;
+    };
+    const TAC = makeTacticalEngine({
+      xy, d2, dist, centroid, tally, hp, isAir, isCombat,
+      valOf: o => cost(o),
+      isMoving: o => !!(o.unitOrderTrait && o.unitOrderTrait.orders && o.unitOrderTrait.orders.length),
+      towerRange,
+    });
+    // ===== TACTICAL_TAC_END =====
+
     const queue = t => { try { return player.production.getQueue(t); } catch (e) { return null; } };
     const orderThrottled = (units, type, x, y, key, s) => {
       const now = sec(), k = key + ':' + x + ',' + y;

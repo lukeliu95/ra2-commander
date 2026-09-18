@@ -29,6 +29,59 @@ def core_block_from(core_text: str) -> str:
         sys.exit("FAIL: 引擎收尾替换失败")
     return out
 
+# ---------- 0) TAC 实例化块（幂等，两个分支都要保证它存在） ----------
+# 第一版把 `const TAC = makeTacticalEngine({...})` 写在了 TACTICAL_CORE 块**内部**，而下面的幂等分支会用最新
+# 核心源码整体覆盖那一块 —— 于是实例化被抹掉，TAC 变成未声明。match-017 开局 3 秒就抛 "TAC is not defined"，
+# tacticalMode 每个 tick 都异常，把该 tick 后面的 siege/repair/retaliate/rearm 整段跳过。现在它有自己的
+# BEGIN/END 标记，并且和核心块分开维护。
+# 锚点必须在所有工具函数之后：xy/d2/.../isCombat 都是 const，早了会撞 TDZ。
+TAC_ANCHOR = "    const avail = () => new Set(player.production.getAvailableObjects().map(r => r.name));"
+TAC_BLOCK = """    // ===== TACTICAL_TAC_BEGIN（由 patch-tactical.py 注入，勿手改此块）=====
+    // 实例化战术内核。两个坑，都是 match-017 开局 3 秒内用一条 "TAC is not defined" 换来的：
+    //   1. 第一版把这几行写在 TACTICAL_CORE 块**里面**，而 patch 脚本的幂等分支会用最新核心源码整体覆盖那一块，
+    //      实例化因此被抹掉；tacRefresh/tacDo/tacRead/tacAct 全都在用 TAC，于是 tacticalMode 每个 tick 抛异常，
+    //      把该 tick 后面的 siege/repair/retaliate/rearm 整段跳过。现在它有自己的 BEGIN/END 标记，两边都幂等。
+    //   2. 第一版传的是 `towerRange: p => towerRangeAt(p)`，但 towerRangeAt 是 army() 的局部函数，在这里不可见，
+    //      真跑起来会换成另一个 "not defined"。改成 start() 作用域内的实现。
+    // 位置也有讲究：锚点必须在所有工具函数之后（xy/d2/.../isCombat 都是 const，早了会撞 TDZ）。
+    const towerRangeCache = new Map();
+    const towerRange = pt => {
+      const towers = (C.state ? C.state().buildings : []).filter(o => o.rules.isBaseDefense);
+      if (!towers.length) return null;
+      const b = towers.reduce((a, t) => d2(xy(t), pt) < d2(xy(a), pt) ? t : a);
+      if (towerRangeCache.has(b.name)) return towerRangeCache.get(b.name);
+      let r = null;
+      try {
+        const rules = game.rules.getObject(b.name, 2);
+        const w = rules && (rules.primary || rules.elitePrimary) && game.rules.getWeapon(rules.primary || rules.elitePrimary);
+        if (w && w.range) r = w.range;
+      } catch (e) {}
+      towerRangeCache.set(b.name, r);
+      return r;
+    };
+    const TAC = makeTacticalEngine({
+      xy, d2, dist, centroid, tally, hp, isAir, isCombat,
+      valOf: o => cost(o),
+      isMoving: o => !!(o.unitOrderTrait && o.unitOrderTrait.orders && o.unitOrderTrait.orders.length),
+      towerRange,
+    });
+    // ===== TACTICAL_TAC_END =====
+"""
+
+
+def with_tac_block(text: str) -> str:
+    """保证 TAC 实例化块存在且唯一（幂等）。"""
+    begin = "    // ===== TACTICAL_TAC_BEGIN"
+    end = "    // ===== TACTICAL_TAC_END =====\n"
+    if begin in text:
+        i = text.index(begin)
+        j = text.index(end, i) + len(end)
+        return text[:i] + TAC_BLOCK + text[j:]
+    if TAC_ANCHOR not in text:
+        sys.exit("FAIL: 找不到 TAC 实例化锚点（avail()）")
+    return text.replace(TAC_ANCHOR, TAC_ANCHOR + "\n\n" + TAC_BLOCK, 1)
+
+
 if "TACTICAL_CORE_BEGIN" in src:
     # 已经打过补丁：只把内联块同步成 tactical-core.js 的最新版本（核心逻辑改动后重跑这一步）
     new = core_block_from(core)
@@ -37,7 +90,7 @@ if "TACTICAL_CORE_BEGIN" in src:
     block = "    // ===== TACTICAL_CORE_BEGIN（由 patch-tactical.py 内联，勿手改此块）=====\n"
     block += "\n".join(("    " + ln) if ln.strip() else "" for ln in new.split("\n"))
     block += "\n\n"
-    RUNTIME.write_text(src[:i] + block + src[j:], encoding="utf-8")
+    RUNTIME.write_text(with_tac_block(src[:i] + block + src[j:]), encoding="utf-8")
     print("synced inline core from tactical-core.js")
     sys.exit(0)
 
@@ -62,14 +115,11 @@ if anchor not in src:
 inline = anchor + "\n\n    // ===== TACTICAL_CORE_BEGIN（由 tools/patch-tactical.py 内联，勿手改此块）=====\n"
 inline += "    // 查打一体的纯逻辑：读同一份战场态、给同一组动作。这里只做依赖注入，不含游戏对象操作。\n"
 inline += "\n".join(("    " + ln) if ln.strip() else "" for ln in engine_src.split("\n"))
-inline += "\n\n    const TAC = makeTacticalEngine({\n"
-inline += "      xy, d2, dist, centroid, tally, hp, isAir, isCombat,\n"
-inline += "      valOf: o => cost(o),\n"
-inline += "      isMoving: o => !!(o.unitOrderTrait && o.unitOrderTrait.orders && o.unitOrderTrait.orders.length),\n"
-inline += "      towerRange: p => towerRangeAt(p),\n"
-inline += "    });\n"
-inline += "    // ===== TACTICAL_CORE_END =====\n"
+inline += "\n    // ===== TACTICAL_CORE_END =====\n"
 src = src.replace(anchor, inline, 1)
+# TAC 实例化不写在这里：它必须落在所有工具函数之后（见 with_tac_block 的 TDZ 说明），
+# 而且必须独立于核心块，否则幂等分支会在同步核心时把它一起覆盖掉。
+src = with_tac_block(src)
 
 # ---------- 3) plan 字段 ----------
 src = src.replace(
