@@ -1,0 +1,9 @@
+{
+  "match": "match-006",
+  "result": "lost",
+  "durationSec": 565,
+  "planVersion": "v005",
+  "opponent": "ai-easy",
+  "notes": "v005首战负，盟军对手8:28出动16单位/12450超大规模总攻碾压，我方经济加码(8:44)来得太晚；3:38反攻窗口误判导致部队从12单位打到1单位",
+  "recordedAt": "2026-09-18T10:44:55"
+}

@@ -14,10 +14,13 @@
 - Bash 用于运行 `{{SKILL_DIR}}/scripts/` 下的脚本；Read / Write / Edit 用于写文件。
 - 不要修改 `{{SKILL_DIR}}` 里的任何文件（代码修改由主会话审核后执行）。
 
-## 步骤
+## 赛后第一件事：确认数据还在，不在就立刻停手报告
+**在读任何日志、做任何分析之前**，先执行一次 `typeof window.__cmd` 和 `window.__cmd && window.__cmd.over`。
+- 如果 `window.__cmd` 还在（`typeof` 不是 `'undefined'`）：按下面第 1 步正常导出。
+- 如果 `window.__cmd` 已经是 `undefined`（页面已经回到主菜单或被刷新过——match-006 就出现过这种情况，原因不明）：**不要假设是自己操作错误、不要重试**。改为读 `localStorage.getItem('ra2cmd:lastMeta')` / `'ra2cmd:lastLog'` / `'ra2cmd:lastSnapshots'`——runtime 在判定 `over` 的那一刻会把这三份 dump 自动写进 localStorage 作为兜底（`rt-` 版本号里包含这个修复的才有；更早的 runtime 没有这个兜底，会是空的）。如果 localStorage 里也没有，就如实向主会话报告"现场数据已丢失，只能靠 `commander_log.md`/`analyst_log.md` 手工重建 `meta.json`/`timeline.md`"，标注清楚哪些数字是精确的（来自实时角色读过的 `C.intel()`）、哪些是估算的，不要假装数据完整。
 
 ### 1. 归档对局数据到 `{{MATCH_DIR}}`
-赛后可以读全视野数据。
+赛后可以读全视野数据（前提是 `window.__cmd` 还在，见上一节）。
 - `JSON.stringify(window.__cmd.dump('meta'))` → 写入 `meta.json`
 - 日志：`window.__cmd.dump('log', {offset, limit: 300, excludeKinds: ['build', 'prod']})` 分页读完（offset 每次加 300，直到返回空数组），合并成一个数组写入 `log.json`。build/prod 类事件已经能从快照看出建造顺序，排除它们可以控制体积。
 - 快照：`window.__cmd.dump('snapshots', {offset, limit: 40, stride: 2})` 分页读完，合并写入 `snapshots.json`（stride 2 即每 20 秒一张）。

@@ -1,0 +1,15 @@
+{
+  "_dataLoss": "CRITICAL: window.__cmd was gone (page had returned to main menu, __cmd/game undefined) by the time the learner agent got browser access after the match ended. C.dump('meta'|'log'|'snapshots') could NOT be read. This file is a best-effort manual reconstruction from match.json, plan_used.json, commander_log.md and analyst_log.md (which log real-time intel() reads including some full-vision fields). It is NOT the real dump — no raw log.json or snapshots.json exist for match-006, so summarize_match.py could not be run. See runtime_issues.md #1 for the incident writeup and the recommended fix (export immediately on `over`, before any agent yields the browser).",
+  "matchId": "match-006",
+  "opponent": "ai-easy",
+  "map": "岛屿之战 (2)",
+  "result": "lost",
+  "durationSec": 565,
+  "planVersion": "v005",
+  "runtimeVersion": "rt-d5b11898dd",
+  "me": "GA (Allied)",
+  "side": "GA",
+  "factions": {"me": "Allied", "enemy": "Alliance (Allied, same faction as us - first same-faction match)"},
+  "starts": {"me": {"x": 135, "y": 80}, "enemy": {"x": 71, "y": 118}},
+  "source": "reconstructed from commander_log.md + analyst_log.md, not from C.dump()"
+}

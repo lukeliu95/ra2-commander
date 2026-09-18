@@ -20,6 +20,7 @@
 | `attackTarget` | `'auto'`（建造厂 > 电厂 > 防御 > 工厂 > 矿厂）或 `[x,y]` | auto |
 | `siegeAutoAttackUnits` / `siegeQuietSeconds` | 防守姿态下连续 N 秒看不到敌军且我方单位 ≥ 门槛，就自动转进攻 | 8 / 10 |
 | `scout` / `repair` | 开局派军犬侦察；建筑血量 <70% 自动修理 | true / true |
+| `minerEscort` | 从部队里抽这么多个（按速度优先）常驻各矿厂旁待命，而不是等矿车挨打了才反应。默认 0=关闭，是预防性字段——没证据显示对手会点名偷袭矿车之前不建议开（T-026，match-006 只是设计提案，没有实战验证过） | 0 |
 
 ## 执行层反射（不需要 agent 参与）
 - 敌军进入我方建筑 `threatRadius` 范围，或攻击矿车，并且在拴绳范围内：全军攻击移动到防御塔旁的迎击点，迎击半径取 `min(leashRadius, 锚定塔武器射程-1)`（match-005 证明过：不按塔的实际射程算，部队会站在塔火力覆盖不到的地方对射送死）。进攻途中家里的威胁超过我方部队价值 25%：撤回主力，stance 变回 defend。
@@ -28,6 +29,8 @@
 - **队列对账**：每 1.5 秒检查一次生产队列，方案不再需要的在建或排队项目会被取消并退款（`[reflex] 方案已不需要，取消 X（进度 N%，取消前资金 M）`）。所以改 plan 可以立刻止血。`infantryCap` 也参与对账：把它调到当前步兵数以下会清空步兵队列。电厂和矿车永远不会被取消。
 - **资金饥饿保护**：有 ≥1000 的建筑/防御在建且资金 <300 时，暂停新排步兵和载具（矿车不受影响），让贵的那项先造完（`[reflex] 资金不足且有 ≥1000 的建筑在建`）。match-004 里磁暴线圈在四条队列分钱的情况下 3 分半没造完。警报只能让 ≤700 的防御跳过资金门槛；更贵的防御要攒到半价才排产。
 - buildOrder 全部完成、建筑队列空闲超过 45 秒：每 60 秒记一条 warn，提醒指挥官追加经济或防御建筑。
+- **静止步兵按伤害加权**：判断威胁大小（`threatValue`，决定要不要全军回防）时，连续 ≥2 次情报采样（约 3 秒）位置不变的敌方步兵按 1.6 倍权重计入，而不是按原始 cost——卧倒/部署的步兵伤害通常比站立时高得多（例如 E1 卧倒后 M60→M60E，+67% 伤害，射程不变），cost 会严重低估它的真实输出（T-022，match-006：5 个静止 E1 表面只值 900，磨掉了我方 9 辆灰熊）。
+- **囤兵预警**：敌方留在家里的部队价值（`atEnemyHome`）一旦反超我方部队价值就开始追踪，持续升高到 ≥1.5 倍记一条 `[advice/reflex] [warn]`，≥2 倍且持续 60 秒记 `[urgent]`（内容会同时提示"经济要不要跟上"和"要不要主动 harass 打断"两个选项）。不需要等 analyst 手动发现（T-023，match-006 里这个信号早在 6:56 就能读到，但直到 7:43 才有人工预警、8:44 才真正应对，为时已晚）。
 - 下一座建筑会造成断电：先插队造电厂。
 - 发现敌方空中单位（弹体如 V3 导弹不算）：防空车权重至少 2，补 1 座防空塔。plan 里显式写了 `defenses.aaDef: 0` 或 `vehicleMix.aaVehicle: 0` 时，这个反射不会覆盖。
 - 建造顺序里的项目连续 60 秒不可造（比如国家专属建筑名不对）：记一条 warn。
@@ -58,3 +61,6 @@
   - `detail:true` 时额外返回：`available`（可生产列表）、`enemy.typesFirstSeen`、`enemy.buildingsFirstSeen`、`enemy.armyTrack`（最近 10 次敌军位置/距离）
 - 事件类型：build、prod、intel、alarm、reflex、attack、siege、scout、kill、loss、plan、advice、warn、error、over、start
 - `C.dump('meta' | 'log' | 'snapshots', offset, limit)`：赛后导出。**snapshots 是全视野数据，比赛进行中禁止读取**，只给复盘学习员用。
+
+## 赛后数据兜底
+`over` 判定的那一刻，runtime 会自动把 `dump('meta'|'log'|'snapshots')` 写进 `localStorage`（键名 `ra2cmd:lastMeta`/`ra2cmd:lastLog`/`ra2cmd:lastSnapshots`）。如果学习员接手时 `window.__cmd` 已经不在了（页面被导航或刷新过，起因未知——match-006 出现过一次），先查这三个 key，比手工从实时日志重建数据完整得多。

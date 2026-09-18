@@ -1,0 +1,59 @@
+{
+  "_note": "跨局累积的单位规则参考（本平台魔改版），供每局开局/中局查阵营克制不用每次现场重查 game.rules。armor 枚举：0 none / 1 flak / 2 plate / 3 light / 4 medium / 5 heavy / 6 wood / 7 steel / 8 concrete / 9 special_1 / 10 special_2。rof 单位为帧（约 15 帧=1 秒）。'verified' 字段：'live'=某局用 game.rules.getObject/getWeapon 现场核实过；'derived'=从伤害/HP文字或战报反推、未直接读接口；'unknown'=完全没有数据，需要下次开一局趁 window.game 还在时用 game.rules.getObject(name,tier)/getWeapon(weaponName) 补上。",
+  "how_to_refresh": "对局进行中（window.__cmd/window.game 仍在内存时）执行：const r = game.rules.getObject('MGTK', 3); const w = game.rules.getWeapon(r.primary); —— 务必在游戏结束、返回主菜单之前做，页面一回主菜单 window.game 就没了（match-006 复盘时就因为这个原因丢失了全部现场数据，见 matches/match-006/runtime_issues.md）。",
+  "warhead_verses": {
+    "_order": ["none", "flak", "plate", "light", "medium", "heavy", "wood", "steel", "concrete", "special_1", "special_2"],
+    "_source": "match-005 unit_rules.json（game.rules 现场核实）",
+    "AP":           [0.25, 0.25, 0.25, 0.75, 1, 1, 0.65, 0.45, 0.6, 0.6, 1],
+    "SA":           [1, 0.8, 0.7, 0.5, 0.25, 0.25, 0.75, 0.5, 0.25, 1, 1],
+    "RifleBullet":  [1, 0.8, 0.3, 0.15, 0.05, 0.03, 0.01, 0.01, 0.01, 0.01, 1],
+    "PrismWarhead": [2, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 2, 1],
+    "Super":        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  },
+  "units": {
+    "E1": {"faction": "Allied", "kind": "infantry", "cost": 180, "hp": 125, "armor": "none", "speed": 10.24, "prereq": ["GAPILE"], "verified": "live",
+      "weapons": {
+        "standing": {"name": "M60", "damage": 15, "rof": 20, "range": 4, "warhead": "SA", "verified": "live"},
+        "deployed": {"name": "M60E", "damage": 25, "rof": 20, "range": 4, "warhead": "SA", "verified": "live",
+          "note": "match-006 现场用 game.rules.getObject('E1',3) / getWeapon() 核实：卧倒后只有伤害从 15→25（+67%），射速帧数和射程都不变（rof/range 未变化，warhead 假定不变，未单独核实）。这是伤害提升，不是常被误认为的'射程增加'。"}
+      }},
+    "ADOG": {"kind": "infantry", "cost": 200, "hp": 80, "armor": "none", "speed": 20.48, "weapon": "GoodTeeth", "verified": "derived", "note": "对步兵一击必杀，具体伤害数字未核实"},
+    "MTNK": {"faction": "Allied", "kind": "vehicle", "cost": 750, "hp": 300, "armor": "heavy", "speed": 27.57, "prereq": ["GAWEAP"], "verified": "live",
+      "weapon": {"name": "105mm", "damage": 65, "rof": 60, "range": 5, "warhead": "AP"}},
+    "CMIN": {"faction": "Allied", "kind": "vehicle(miner)", "cost": 1400, "hp": 1000, "armor": "medium", "speed": 19.69, "verified": "live"},
+    "GAPILL": {"faction": "Allied", "kind": "base defense", "verified": "live",
+      "weapon": {"name": "Vulcan2", "damage": 50, "rof": 26, "range": 5.5, "warhead": "SA"}},
+    "ATESLA": {"faction": "Allied", "kind": "base defense (本平台=光棱塔)", "verified": "live",
+      "weapon": {"name": "PrismShot", "damage": 120, "rof": 60, "range": 8, "warhead": "PrismWarhead"}},
+    "FV": {"faction": "Allied", "kind": "vehicle (多功能步兵车)", "verified": "unknown",
+      "note": "五局里反复出现（2:11–2:17 首见），从未现场核实 cost/hp/armor/weapon。战报显示对纯步兵有效、被 LTNK 之类重甲单位克制。下次开局趁 game.rules 可用时补。"},
+    "JUMPJET": {"faction": "Allied", "kind": "aircraft (空军)", "verified": "unknown",
+      "note": "match-006 首次大量出现（5:52 起 6 架规模化，档案原预期 7:12+ 零星），终局波仍有 6 架。全无硬数据（cost/hp/armor/weapon/speed 均未核实）。这是本局最大的情报盲区之一——不知道它的射程和伤害，没法判断防空塔覆盖是否够、要几座。下次盟军局务必现场核实。"},
+    "MGTK": {"faction": "Allied", "kind": "vehicle，疑似'镜像坦克'（uiName 猜测，未核实）", "verified": "unknown",
+      "note": "match-006 首次出现（7:06 首见，终局波 3 辆），档案完全没有记录，连中文名都是猜的。cost/hp/armor/weapon 全部未知。"},
+    "SREF": {"faction": "Allied", "kind": "vehicle/infantry，未知类型", "verified": "unknown",
+      "note": "match-006 首次出现（7:43 首见，终局波 2 个），战报显示终局 3 分钟内单独炸穿 2 矿厂+2 碉堡+ATESLA，疑似类似 GHOST2 的强拆楼单位（一次性高伤害对建筑，如 Super 弹头），但完全未核实。是本局造成基地崩盘最直接的未知因素，优先级最高，下次务必现场核实 cost/hp/armor/weapon/warhead。"},
+
+    "LTNK": {"faction": "Confederation", "kind": "vehicle", "cost": 860, "hp": 330, "armor": "heavy", "speed": 27.57, "sight": 8, "prereq": ["CAWEAP"], "techLevel": 2, "verified": "live",
+      "weapon": {"name": "120mm", "damage": 90, "rof": 65, "range": 5.75, "warhead": "AP"}},
+    "GHOST2": {"faction": "Confederation(+苏系)", "uiName": "WOLFGHOST", "kind": "infantry", "cost": 750, "hp": 125, "armor": "flak", "speed": 15.36, "prereq": ["CAHAND", "RADAR"], "techLevel": 5, "verified": "live",
+      "weapon": {"name": "SeaWolfMP5", "damage": 105, "rof": 10, "range": 6, "warhead": "RifleBullet"},
+      "secondary": {"name": "Sapper", "damage": 2500, "rof": 100, "range": 1.5, "warhead": "Super", "note": "对建筑一次性拆除（C4）"}},
+    "PLA": {"faction": "Confederation", "kind": "infantry", "cost": 200, "hp": 200, "armor": "flak", "speed": 12.8, "prereq": ["CAHAND"], "techLevel": 1, "verified": "live",
+      "weapon": {"name": "M60", "damage": 15, "rof": 20, "range": 4, "warhead": "SA"}},
+    "CHAR": {"faction": "Confederation(+苏系)", "kind": "vehicle(miner)", "cost": 800, "hp": 500, "armor": "medium", "speed": 39.38, "prereq": ["CAWEAP", "PROC"], "techLevel": 1, "verified": "live"},
+
+    "HTNK": {"faction": "Soviet(NA)", "kind": "vehicle (犀牛坦克)", "verified": "unknown",
+      "note": "苏军主力坦克，档案时间节点 2:01–2:21，被灰熊/GGI克制的定性描述有，但没有 cost/hp/armor/weapon 硬数字。opponents/ai-easy.md 苏军节里只有文字描述'碉堡对HTNK效果差'，未核实具体伤害系数。"},
+    "HTK": {"faction": "Soviet(NA)", "kind": "vehicle (防空履带车)", "verified": "unknown", "note": "档案 2:01–2:21 首见，用于反空同时也用于偷袭矿车，无硬数据"},
+    "V3": {"faction": "Soviet(NA)", "kind": "vehicle (V3火箭车/炮兵)", "verified": "unknown", "note": "档案 4:01 首见，射程超过塔（碉堡/哨戒炮够不着），具体射程数字未核实，isArtillery 标记在 runtime.js 里靠正则 /^(V3|ARTY|DRED)$/ 识别"},
+    "APOC": {"faction": "Soviet(NA)", "kind": "vehicle (天启坦克)", "verified": "unknown", "note": "档案 4:46–6:21 首见，重装甲，opponents 档案提到'DRON 500 换 APOC 1700'暗示 APOC 大致值 1700，但这是战果价值不是确认的 cost 字段"},
+    "E2": {"faction": "Soviet(NA)", "kind": "infantry (动员兵)", "verified": "unknown", "note": "苏军第 1 波主力（20 个/1800 总值，隐含单价约 90，但未核实是否等于游戏内真实 cost），武器与伤害系数未核实"},
+    "DOG": {"faction": "Soviet(NA)", "kind": "infantry (军犬)", "verified": "unknown"}
+  },
+  "coverage_summary": {
+    "fully_verified_live": ["E1(含卧倒态)", "MTNK", "CMIN", "GAPILL", "ATESLA", "LTNK", "GHOST2", "PLA", "CHAR"],
+    "unknown_high_priority": ["SREF（match-006 拆家主凶）", "JUMPJET（match-006 空军主力，五局最大情报盲区）", "MGTK", "FV", "HTNK", "V3", "APOC", "HTK", "E2"],
+    "note": "优先级建议：下一局如果再遇到盟军且出现 JUMPJET/MGTK/SREF，指挥官/情报分析员应在游戏仍在进行、window.game 可用时主动跑一次 game.rules.getObject(name, tier) 和 getWeapon()，把结果原样记进本文件（不要等复盘时才想起来，复盘时页面可能已经回到主菜单，见 match-006 的教训）。"
+  }
+}

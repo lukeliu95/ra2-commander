@@ -1,0 +1,46 @@
+{
+  "version": "v006",
+  "parent": "v005",
+  "createdAt": "2026-09-18T10:52:19",
+  "reason": "复盘 match-006（v005 首战负，9:25，本系列最长的一局，对手是首次出现的盟军'经济/科技碾压'变体：8:28 出动16单位/12450总攻，是档案10单位/3200-5000的2-4倍）。方案本身没有直接暴露漏洞（前两波塔旁接战交换比都有利，1.2:1、1.3:1），真正的败因是决策链条没跟上（3:38反攻误判、8:44经济加码太晚）和执行层pt质心抖动bug（已在runtime.js修复但本局未验证），不是plan字段的错。但3个字段改动仍能降低下次遇到同类对手时的风险：(1) targetRefineries 3->4：8:44指挥官自己做过这个决定方向正确只是太晚，经济和坦克生产是独立队列（structures vs vehicles），提前设为4不会像T-016警告的minersPerRefinery那样挤占开局坦克生产窗口，只是把'该做的决定'提前到开局而不必等指挥官中局发现。(2) maxMiners 9->12：配合更高的targetRefineries留出上限余量，minersPerRefinery仍保持2（不动，避免重演match-005对古巴的T-016反例——对手阵营随机，可能再遇到2:23就来坦克的古巴局）。(3) attackMinUnits 14->10：呼应T-005候选（match-002证明2倍兵力时更早出击能更快结束战斗）和用户本局明确提出的'主动打经济'要求——本局2:20时我方已接近2倍价值优势(3690:1880)但因为11单位<14被继续按defend处理，错过了在对手滚雪球之前主动出手的窗口；调低门槛让指挥官有更早行动的空间（是否行动仍由指挥官判断，不是自动触发）。三处都不改动directly导致本局最大两次损失（3:38反攻误判、pt抖动bug）的字段，因为那两个是决策流程和执行层代码问题，已分别写入debrief.md的用户指示回应一节和runtime_issues.md，不能用plan字段解决。(4) minerEscort 0->1：主会话追加。用户在比赛中明确要求'要有部队去保护矿车'，执行层新增了这个字段（默认0=关闭），本局没有直接证据显示矿车被偷袭过（T-026是预防性提案，不是从战报推出的确定规律），先给1个保守值验证机制本身是否可靠，不要一次性分兵太多；如果几局下来都没观测到矿车被偷袭的实际案例，应在后续复盘里考虑降级/关闭这个字段。",
+  "plan": {
+    "stance": "defend",
+    "targetRefineries": 4,
+    "minersPerRefinery": 2,
+    "maxMiners": 12,
+    "infantryMix": {
+      "inf": 1
+    },
+    "infantryCap": 8,
+    "defenseDistance": 6,
+    "threatRadius": 14,
+    "retreatRatio": 0.35,
+    "attackTarget": "auto",
+    "siegeAutoAttackUnits": 8,
+    "siegeQuietSeconds": 10,
+    "repair": true,
+    "buildOrder": [
+      "power",
+      "refinery",
+      "barracks",
+      "factory",
+      "refinery",
+      "power",
+      "radar",
+      "refinery",
+      "power"
+    ],
+    "maxFactories": 2,
+    "vehicleMix": {
+      "tank": 4
+    },
+    "defenses": {
+      "baseDef": 2,
+      "strongDef": 1
+    },
+    "attackMinUnits": 10,
+    "scout": true,
+    "leashRadius": 4,
+    "minerEscort": 1
+  }
+}

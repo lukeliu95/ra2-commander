@@ -20,7 +20,7 @@ function ra2Runtime() {
     buildOrder: ['power', 'refinery', 'barracks', 'factory', 'refinery', 'power', 'radar', 'refinery', 'factory', 'power'],
     targetRefineries: 3, minersPerRefinery: 2, maxMiners: 7, maxFactories: 2,
     vehicleMix: {tank: 3, aaVehicle: 2}, infantryMix: {inf: 1}, infantryCap: 8,
-    defenses: {baseDef: 2}, defenseDistance: 6, threatRadius: 14, leashRadius: 8, sortieMaxUnits: 4,
+    defenses: {baseDef: 2}, defenseDistance: 6, threatRadius: 14, leashRadius: 8, sortieMaxUnits: 4, minerEscort: 0,
     attackMinUnits: 14, retreatRatio: 0.35, attackTarget: 'auto',
     siegeAutoAttackUnits: 8, siegeQuietSeconds: 10,
     scout: true, repair: true,
@@ -79,7 +79,7 @@ function ra2Runtime() {
     const M = C.mem = {side: null, sideKey: null, enemyBuildings: new Map(), enemyTypes: new Map(), myIds: new Map(), enemyUnitIds: new Map(),
       armyHist: [], approach: null, alarm: false, airSeen: false, attack: null, scoutId: null, scouted: false, repairing: new Set(),
       lastOrder: new Map(), pendingPlace: 0, lastTick: {}, oreTiles: [], siegeTarget: null, siegeHit: new Map(), noArmySince: null,
-      av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null};
+      av: null, counts: null, unavail: {}, sqIdleSince: null, starved: false, sortie: null, stillTicks: new Map(), hoardSince: null, hoardWarned: 0};
     const sec = () => g.getCurrentTick() / rate;
     const every = (key, s) => { const now = sec(); if (now - (M.lastTick[key] ?? -1e9) >= s) { M.lastTick[key] = now; return true; } return false; };
     // A role may map to candidates (e.g. country-specific radar); pick the one that is buildable or already owned.
@@ -301,7 +301,7 @@ function ra2Runtime() {
         }
       }
       for (const [id, b] of M.enemyBuildings) if (!game.getWorld().hasObjectId(id)) { M.enemyBuildings.delete(id); log('kill', `摧毁敌方建筑 ${b.name}`); }
-      const lostE = []; for (const [id, n] of M.enemyUnitIds) if (!game.getWorld().hasObjectId(id)) { M.enemyUnitIds.delete(id); lostE.push(n); }
+      const lostE = []; for (const [id, n] of M.enemyUnitIds) if (!game.getWorld().hasObjectId(id)) { M.enemyUnitIds.delete(id); lostE.push(n); M.stillTicks.delete(id); }
       if (lostE.length) log('kill', `击杀敌方 ${JSON.stringify(tally(lostE))}`);
       const cur = new Set(S.mine.map(o => o.id));
       const lost = []; for (const [id, n] of M.myIds) if (!cur.has(id)) { lost.push(n); M.myIds.delete(id); }
@@ -309,6 +309,13 @@ function ra2Runtime() {
       if (lost.length) log('loss', `我方损失 ${JSON.stringify(tally(lost))}`);
       const base = baseCenter(S.buildings);
       const army = S.hostile.filter(o => !o.isBuilding() && !o.rules.harvester);
+      // Track which hostile infantry haven't moved in a while: deployed infantry (e.g. E1 -> M60E) deal much
+      // more damage than their cost implies, but stay put to do it (match-006: 5 stationary E1 ground down 9 MTNK).
+      for (const o of army) {
+        if (!o.isInfantry || !o.isInfantry()) continue;
+        const p = xy(o), st = M.stillTicks.get(o.id);
+        if (st && st.x === p.x && st.y === p.y) st.n++; else M.stillTicks.set(o.id, {x: p.x, y: p.y, n: 1});
+      }
       // Revealed ground stays visible for good (no fog of war), so units idling at the enemy base are "visible" too.
       // Distance/trend are computed from the field army only; the home group is reported separately.
       const away = army.filter(o => dist(xy(o), enemyStart()) > 15);
@@ -324,6 +331,17 @@ function ra2Runtime() {
         const cc = centroid(close);
         M.approach = M.approach ? {x: Math.round(M.approach.x * 0.7 + cc.x * 0.3), y: Math.round(M.approach.y * 0.7 + cc.y * 0.3)} : cc;
       }
+      // T-023: warn when the enemy is hoarding at home well past our own army value, instead of waiting for an
+      // analyst to notice by hand (match-006: the ratio was readable at 6:56 but wasn't flagged until 7:43).
+      const homeVal = army.filter(o => !away.includes(o)).reduce((s, o) => s + cost(o), 0);
+      const myVal = S.mine.filter(isCombat).reduce((s, o) => s + cost(o), 0);
+      const ratio = myVal > 0 ? homeVal / myVal : (homeVal > 0 ? Infinity : 0);
+      if (ratio >= 1.5) {
+        M.hoardSince ??= now;
+        const dur = now - M.hoardSince;
+        if (ratio >= 2 && dur >= 60 && M.hoardWarned < 2) { M.hoardWarned = 2; log('advice', `[urgent] 敌方在家囤兵 ${homeVal}，已达我方部队价值(${myVal})的 ${ratio.toFixed(1)} 倍，持续 ${Math.round(dur)} 秒未变化：经济要不要跟上，或者趁它没出门主动 harass 打断，两个选项都要考虑（T-023）`, 'reflex'); }
+        else if (M.hoardWarned < 1) { M.hoardWarned = 1; log('advice', `[warn] 敌方在家囤兵已反超我方部队价值 ${ratio.toFixed(1)} 倍且仍在涨（${homeVal} vs ${myVal}），进入观察期（T-023）`, 'reflex'); }
+      } else { M.hoardSince = null; M.hoardWarned = 0; }
     }
 
     function pickTarget(base) {
@@ -383,7 +401,9 @@ function ra2Runtime() {
         if (every('minerHome', 10)) log('reflex', `矿车在防线外被打：撤回基地（${exposedMiners.length} 辆），部队不出防线`);
       }
       if (outside.length && every('outsideLeash', 15)) log('warn', `防线外有敌军在打我方建筑：${JSON.stringify(tally(outside.map(o => o.name)))}，超出拴绳距离 ${leash} 格未出兵（可调 leashRadius）`);
-      const threatValue = threats.reduce((s, o) => s + cost(o), 0);
+      // T-022: stationary infantry is usually deployed (e.g. E1 -> M60E, +67% damage) — cost alone underrates it.
+      const dmgWeight = o => (o.isInfantry && o.isInfantry() && (M.stillTicks.get(o.id)?.n || 0) >= 2) ? 1.6 : 1;
+      const threatValue = threats.reduce((s, o) => s + cost(o) * dmgWeight(o), 0);
       const myValue = units.reduce((s, o) => s + cost(o), 0);
       // Artillery parked just outside the leash shelled both towers to death in match-004 with zero response.
       // Send a few fast vehicles only when the shooters are lightly escorted; everyone else stays on the line.
@@ -412,7 +432,11 @@ function ra2Runtime() {
         const anchor = anchorFor(tc), reach = dist(tc, anchor);
         const towerR = towerRangeAt(anchor);
         const capR = towerR ? Math.max(1, Math.min(P.leashRadius, towerR - 1)) : P.leashRadius;
-        const pt = reach > capR ? {x: Math.round(anchor.x + (tc.x - anchor.x) * capR / reach), y: Math.round(anchor.y + (tc.y - anchor.y) * capR / reach)} : tc;
+        const ptRaw = reach > capR ? {x: anchor.x + (tc.x - anchor.x) * capR / reach, y: anchor.y + (tc.y - anchor.y) * capR / reach} : tc;
+        // Round to a coarse grid so minor centroid drift (deployed infantry doesn't move) doesn't re-key the
+        // AttackMove order every 0.8s tick and cancel the in-progress attack — match-006 ground down 9 MTNK
+        // this way against a stationary deployed-E1 blob while trading favorably at first contact.
+        const pt = {x: Math.round(ptRaw.x / 2) * 2, y: Math.round(ptRaw.y / 2) * 2};
         if (!M.alarm) { M.alarm = true; log('alarm', `基地/矿车受威胁：${JSON.stringify(tally(threats.map(o => o.name)))} 价值 ${threatValue} @${tc.x},${tc.y}，迎击点 ${pt.x},${pt.y}，我方部队价值 ${myValue}`); }
         const deep = M.attack ? units.filter(o => dist(xy(o), enemyStart()) < 25) : [];
         const recallAll = threatValue > myValue * 0.25;
@@ -459,7 +483,18 @@ function ra2Runtime() {
         orderThrottled(units.filter(o => !fast.includes(o) && d2(xy(o), rally) > 36), ORD.AttackMove, rally.x, rally.y, 'rally', 6);
         return;
       }
-      orderThrottled(units.filter(o => d2(xy(o), rally) > 36), ORD.AttackMove, rally.x, rally.y, 'rally', 6);
+      // T-026: a small standing guard at the refineries, not just a reaction once a miner is already hurt.
+      // Opt-in (default 0) — only spend units on this once a matchup is known to snipe miners before they take damage.
+      const refPts = S.buildings.filter(b => b.rules.refinery).map(xy);
+      const guardCount = Math.min(P.minerEscort || 0, units.length, refPts.length);
+      const guardIds = new Set();
+      for (let i = 0; i < guardCount; i++) {
+        const u = [...units].sort((a, b) => (b.rules.speed || 0) - (a.rules.speed || 0))[i];
+        const spot = refPts[i];
+        orderThrottled([u], ORD.AttackMove, spot.x, spot.y, 'escort:' + u.id, 8);
+        guardIds.add(u.id);
+      }
+      orderThrottled(units.filter(o => !guardIds.has(o.id) && d2(xy(o), rally) > 36), ORD.AttackMove, rally.x, rally.y, 'rally', 6);
     }
 
     // Attack-move ignores ordinary buildings, so with no enemy army nearby issue direct attacks: CY > power > defenses > production > refinery.
@@ -530,6 +565,13 @@ function ra2Runtime() {
         try { record(); } catch (e) {}
         log('over', `游戏结束：${C.over === 'won' ? '我方胜利' : '我方失败'}，用时 ${fmt(sec())}`);
         C.endedAt = Math.round(sec());
+        // Persist a dump the instant the match ends: if the page navigates away before a learner
+        // gets to it (match-006 lost the entire post-game dump this way), this is the fallback.
+        try {
+          localStorage.setItem('ra2cmd:lastMeta', JSON.stringify(C.dump('meta')));
+          localStorage.setItem('ra2cmd:lastLog', JSON.stringify(C.dump('log', {limit: 4000})));
+          localStorage.setItem('ra2cmd:lastSnapshots', JSON.stringify(C.dump('snapshots', {limit: 1000})));
+        } catch (e) { log('warn', '赛后自动导出到 localStorage 失败: ' + e.message); }
         clearInterval(C.timer); return;
       }
       const S = C.state();
